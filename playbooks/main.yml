@@ -2,7 +2,7 @@
 - name: Prepare and harden servers
   hosts: all
   roles:
-    - { role: 01_base_config, tags: ['common', 'prep'] }
+    - { role: 01_base_config, tags: ['config', 'prep'] }
 
 - name: Deploy k3s cluster
   hosts: all
