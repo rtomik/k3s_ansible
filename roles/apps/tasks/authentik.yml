@@ -1,0 +1,9 @@
+---
+- name: Deploy Authentik
+  kubernetes.core.helm:
+    name: authentik
+    chart_ref: authentik/authentik
+    chart_version: "{{ authentik_version }}"
+    release_namespace: authentik
+    create_namespace: yes
+    values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"

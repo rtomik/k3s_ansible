@@ -1,0 +1,51 @@
+---
+- name: Download k3s install script
+  get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s_install.sh
+    mode: '0755'
+  tags:
+    - k3s
+    - k3s:install
+
+- name: Install k3s
+  command:
+    cmd: /tmp/k3s_install.sh {{ 'server' if inventory_hostname == groups['k3s_cluster'][0] else 'agent' }}
+    creates: /usr/local/bin/k3s
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ k3s_token }}"
+    K3S_URL: "https://{{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}:6443"
+    INSTALL_K3S_EXEC: "{{ k3s_server_args }}"
+  notify: Restart k3s
+  tags:
+    - k3s
+    - k3s:install
+
+- name: Ensure k3s service is enabled and started
+  systemd:
+    name: k3s
+    enabled: yes
+    state: started
+  tags:
+    - k3s
+    - k3s:service
+
+- name: Get kubeconfig from primary node
+  slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_kubeconfig
+  when: inventory_hostname == groups['k3s_cluster'][0]
+  tags:
+    - k3s
+    - k3s:config
+
+- name: Store kubeconfig locally
+  copy:
+    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['k3s_cluster'][0]]['ansible_host']) }}"
+    dest: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
+  delegate_to: localhost
+  when: inventory_hostname == groups['k3s_cluster'][0]
+  tags:
+    - k3s
+    - k3s:config

@@ -1,0 +1,21 @@
+---
+k3s_version: v1.24.4+k3s1
+k3s_server_args: "--tls-san {{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}"
+
+# Apps versions
+argocd_version: 5.16.2
+longhorn_version: 1.3.2
+prometheus_stack_version: 41.7.3
+traefik_version: 10.24.0
+authentik_version: 2023.5.3
+
+# Domain configuration
+domain: your-domain.com
+email: your-email@example.com
+
+# Authentik configuration
+authentik_secret_key: "{{ vault_authentik_secret_key }}"
+authentik_postgresql_password: "{{ vault_authentik_postgresql_password }}"
+
+# ArgoCD admin password
+argocd_admin_password: "{{ vault_argocd_admin_password }}"

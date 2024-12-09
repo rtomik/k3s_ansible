@@ -1,0 +1,22 @@
+---
+- name: Deploy Traefik
+  kubernetes.core.helm:
+    name: traefik
+    chart_ref: traefik/traefik
+    chart_version: "{{ traefik_version }}"
+    release_namespace: traefik
+    create_namespace: yes
+    values:
+      additionalArguments:
+        - "--certificatesresolvers.le.acme.email={{ email }}"
+        - "--certificatesresolvers.le.acme.storage=/data/acme.json"
+        - "--certificatesresolvers.le.acme.tlschallenge=true"
+      persistence:
+        enabled: true
+        accessMode: ReadWriteOnce
+        size: 128Mi
+      ports:
+        web:
+          redirectTo: websecure
+      service:
+        type: LoadBalancer

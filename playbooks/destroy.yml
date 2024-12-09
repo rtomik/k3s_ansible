@@ -1,0 +1,55 @@
+---
+- hosts: all
+  tags:
+    - destroy
+  tasks:
+    - name: Stop k3s service
+      systemd:
+        name: k3s
+        state: stopped
+      ignore_errors: yes
+
+    - name: Uninstall k3s
+      command: /usr/local/bin/k3s-uninstall.sh
+      ignore_errors: yes
+
+    - name: Remove k3s binary
+      file:
+        path: /usr/local/bin/k3s
+        state: absent
+
+    - name: Remove k3s data directory
+      file:
+        path: /var/lib/rancher/k3s
+        state: absent
+
+    - name: Remove k3s configuration directory
+      file:
+        path: /etc/rancher/k3s
+        state: absent
+
+    - name: Remove CNI configuration
+      file:
+        path: /etc/cni
+        state: absent
+
+    - name: Remove local kubeconfig
+      file:
+        path: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+
+- hosts: k3s_cluster[0]
+  tags:
+    - destroy
+  tasks:
+    - name: Remove Helm
+      file:
+        path: /usr/local/bin/helm
+        state: absent
+
+    - name: Remove kubectl
+      file:
+        path: /usr/local/bin/kubectl
+        state: absent
