@@ -20,3 +20,10 @@ authentik_postgresql_password: "{{ vault_authentik_postgresql_password }}"
 
 # ArgoCD admin password
 argocd_admin_password: "{{ vault_argocd_admin_password }}"
+
+# Server configuration
+perform_full_upgrade: false
+disable_ipv6: false
+
+# Time zone configuration
+timezone: "UTC"  # Change this to your desired time zone, e.g., "America/New_York"
