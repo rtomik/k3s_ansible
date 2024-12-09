@@ -1,0 +1,154 @@
+---
+# Packages 
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  apt:
+    upgrade: yes
+  when: perform_full_upgrade | default(false)
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - apt-transport-https
+      - ca-certificates
+      - software-properties-common
+      - fail2ban
+      - ufw
+    state: present
+
+# Time
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Install chrony
+  apt:
+    name: chrony
+    state: present
+
+- name: Configure chrony
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    mode: '0644'
+  notify: Restart chrony
+
+- name: Enable and start chrony service
+  systemd:
+    name: chronyd
+    state: started
+    enabled: yes
+
+- name: Allow NTP through UFW
+  ufw:
+    rule: allow
+    port: '123'
+    proto: udp
+
+- name: Ensure system clock is synchronized
+  command: chronyc makestep
+  changed_when: false
+
+# SSH
+
+- name: Disable password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  notify: Restart sshd
+
+- name: Disable root login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+  notify: Restart sshd
+
+- name: Set SSH idle timeout
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ClientAliveInterval'
+    line: 'ClientAliveInterval 300'
+  notify: Restart sshd
+
+- name: Set SSH client alive count max
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ClientAliveCountMax'
+    line: 'ClientAliveCountMax 3'
+  notify: Restart sshd
+
+# Firewall 
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+    policy: deny
+
+- name: Allow SSH through UFW
+  ufw:
+    rule: allow
+    port: '22'
+
+- name: Allow HTTP through UFW
+  ufw:
+    rule: allow
+    port: '80'
+
+- name: Allow HTTPS through UFW
+  ufw:
+    rule: allow
+    port: '443'
+
+- name: Enable fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+- name: Set up automatic security updates
+  apt:
+    name: unattended-upgrades
+    state: present
+
+- name: Configure automatic security updates
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: '0644'
+
+- name: Disable IPv6
+  sysctl:
+    name: net.ipv6.conf.all.disable_ipv6
+    value: '1'
+    state: present
+  when: disable_ipv6 | default(false)
+
+- name: Harden sysctl settings
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    - { key: "net.ipv4.conf.all.send_redirects", value: "0" }
+    - { key: "net.ipv4.conf.all.accept_source_route", value: "0" }
+    - { key: "net.ipv4.conf.all.log_martians", value: "1" }
+
+- name: Set permissions on sensitive files
+  file:
+    path: "{{ item }}"
+    mode: '0600'
+    owner: root
+    group: root
+  loop:
+    - /etc/shadow
+    - /etc/gshadow

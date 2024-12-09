@@ -1,7 +1,0 @@
----
-- hosts: all
-  tags:
-    - always
-    - prepare
-  roles:
-    - common

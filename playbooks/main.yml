@@ -1,4 +1,20 @@
 ---
-- import_playbook: prepare.yml
-- import_playbook: k3s.yml
-- import_playbook: apps.yml
+- name: Prepare and harden servers
+  hosts: all
+  roles:
+    - { role: 01_base_config, tags: ['common', 'prep'] }
+
+- name: Deploy k3s cluster
+  hosts: all
+  roles:
+    - { role: 02_k3s, tags: ['k3s'] }
+
+- name: Deploy applications
+  hosts: k3s_cluster[0]
+  roles:
+    - { role: traefik, tags: ['traefik', 'ingress'] }
+    - { role: longhorn, tags: ['longhorn', 'storage'] }
+    - { role: argocd, tags: ['argocd', 'gitops'] }
+    - { role: authentik, tags: ['authentik', 'sso'] }
+    - { role: monitoring, tags: ['monitoring'] }
+    - { role: rancher, tags: ['rancher', 'management'], when: deploy_rancher | default(true) }

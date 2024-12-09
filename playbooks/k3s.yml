@@ -1,6 +1,0 @@
----
-- hosts: all
-  tags:
-    - k3s
-  roles:
-    - k3s
