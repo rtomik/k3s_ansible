@@ -1,9 +1,15 @@
 ---
+- name: Check if k3s is already installed
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
 - name: Download k3s install script
   get_url:
     url: https://get.k3s.io
     dest: /tmp/k3s_install.sh
     mode: '0755'
+  when: not k3s_binary.stat.exists
   tags:
     - k3s
     - k3s:install
@@ -11,12 +17,12 @@
 - name: Install k3s
   command:
     cmd: /tmp/k3s_install.sh {{ 'server' if inventory_hostname == groups['k3s_cluster'][0] else 'agent' }}
-    creates: /usr/local/bin/k3s
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     K3S_TOKEN: "{{ k3s_token }}"
     K3S_URL: "https://{{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}:6443"
     INSTALL_K3S_EXEC: "{{ k3s_server_args }}"
+  when: not k3s_binary.stat.exists
   notify: Restart k3s
   tags:
     - k3s
@@ -40,12 +46,24 @@
     - k3s
     - k3s:config
 
+- name: Check if local kubeconfig exists
+  stat:
+    path: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
+  delegate_to: localhost
+  register: local_kubeconfig
+  when: inventory_hostname == groups['k3s_cluster'][0]
+  tags:
+    - k3s
+    - k3s:config
+
 - name: Store kubeconfig locally
   copy:
     content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['k3s_cluster'][0]]['ansible_host']) }}"
     dest: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
   delegate_to: localhost
-  when: inventory_hostname == groups['k3s_cluster'][0]
+  when: 
+    - inventory_hostname == groups['k3s_cluster'][0]
+    - not local_kubeconfig.stat.exists
   tags:
     - k3s
     - k3s:config

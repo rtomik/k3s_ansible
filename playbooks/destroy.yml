@@ -7,11 +7,11 @@
       systemd:
         name: k3s
         state: stopped
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Uninstall k3s
       command: /usr/local/bin/k3s-uninstall.sh
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Remove k3s binary
       file:

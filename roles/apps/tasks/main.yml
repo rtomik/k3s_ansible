@@ -46,3 +46,8 @@
   tags:
     - apps
     - apps:monitoring
+
+- import_tasks: rancher.yaml
+  tags:
+    - apps
+    - apps:rancher
