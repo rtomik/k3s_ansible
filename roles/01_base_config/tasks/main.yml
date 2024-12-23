@@ -20,7 +20,31 @@
       - software-properties-common
       - fail2ban
       - ufw
+      - python3-kubernetes
+      - python3-yaml
+      - python3-venv
     state: present
+
+# Configure python
+
+- name: Create a virtual environment
+  command: python3 -m venv /home/{{ user }}/ansible_env
+  args:
+    creates: /home/{{ user }}/ansible_env
+
+- name: Install pip packages in virtual environment
+  pip:
+    name:
+      - kubernetes
+      - PyYAML
+    virtualenv: /home/{{ user }}/ansible_env
+    virtualenv_command: python3 -m venv
+
+- name: Add virtual environment activation to .bashrc
+  lineinfile:
+    path: /home/{{ user }}/.bashrc
+    line: 'source /home/{{ user }}/ansible_env/bin/activate'
+    create: yes
 
 # Time
 
@@ -107,6 +131,16 @@
   ufw:
     rule: allow
     port: '443'
+
+- name: Allow Kubernetes API Server through UFW
+  ufw:
+    rule: allow
+    port: '6443'
+
+- name: Allow Kubelet through UFW
+  ufw:
+    rule: allow
+    port: '10250'
 
 - name: Enable fail2ban
   service:

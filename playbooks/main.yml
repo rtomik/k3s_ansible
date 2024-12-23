@@ -12,9 +12,14 @@
 - name: Deploy applications
   hosts: k3s_cluster[0]
   roles:
-    - { role: traefik, tags: ['traefik', 'ingress'] }
-    - { role: longhorn, tags: ['longhorn', 'storage'] }
-    - { role: argocd, tags: ['argocd', 'gitops'] }
-    - { role: authentik, tags: ['authentik', 'sso'] }
-    - { role: monitoring, tags: ['monitoring'] }
-    - { role: rancher, tags: ['rancher', 'management'], when: deploy_rancher | default(true) }
+    - role: 03_apps
+      tags:
+        - apps
+        - apps:helm
+        - apps:repos
+        - apps:traefik
+        - apps:authentik
+        - apps:argocd
+        - apps:longhorn
+        - apps:monitoring
+        - apps:rancher

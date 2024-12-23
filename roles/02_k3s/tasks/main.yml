@@ -14,15 +14,31 @@
     - k3s
     - k3s:install
 
-- name: Install k3s
+- name: Install k3s server
   command:
-    cmd: /tmp/k3s_install.sh {{ 'server' if inventory_hostname == groups['k3s_cluster'][0] else 'agent' }}
+    cmd: /tmp/k3s_install.sh server
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     K3S_TOKEN: "{{ k3s_token }}"
-    K3S_URL: "https://{{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}:6443"
     INSTALL_K3S_EXEC: "{{ k3s_server_args }}"
-  when: not k3s_binary.stat.exists
+  when: 
+    - not k3s_binary.stat.exists
+    - inventory_hostname == groups['k3s_cluster'][0]
+  notify: Restart k3s
+  tags:
+    - k3s
+    - k3s:install
+
+- name: Install k3s agent
+  command:
+    cmd: /tmp/k3s_install.sh agent
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ k3s_token }}"
+    K3S_URL: "https://{{ k3s_api_server }}:6443"
+  when:
+    - not k3s_binary.stat.exists
+    - inventory_hostname != groups['k3s_cluster'][0]
   notify: Restart k3s
   tags:
     - k3s
@@ -67,3 +83,22 @@
   tags:
     - k3s
     - k3s:config
+
+- name: Ensure .kube directory exists
+  file:
+    path: "~/.kube"
+    state: directory
+    mode: '0755'
+
+- name: Copy kubeconfig to ~/.kube/config
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "~/.kube/config"
+    remote_src: yes
+    mode: '0600'
+
+- name: Set KUBECONFIG environment variable
+  lineinfile:
+    path: ~/.bashrc
+    line: 'export KUBECONFIG=~/.kube/config'
+    create: yes

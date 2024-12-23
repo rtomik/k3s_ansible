@@ -3,10 +3,4 @@ all:
     k3s_cluster:
       hosts:
         minipc1:
-          ansible_host: 192.168.1.101
-        minipc2:
-          ansible_host: 192.168.1.102
-        minipc3:
-          ansible_host: 192.168.1.103
-  vars:
-    ansible_user: your_ssh_user
+          ansible_host: 192.168.1.146
