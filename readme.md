@@ -54,10 +54,11 @@ k3s-ansible/
 ## Prerequisites
 
 - Ansible 2.9 or higher
-- At least three nodes (virtual or physical machines) running a compatible Linux distribution (e.g., Ubuntu 20.04)
+- Node with installed Ubuntu 24.04
 - SSH access to all nodes
 - `kubectl` installed on your local machine
-- A custom domain that you control and can configure DNS records for
+- A custom domain that you control and can configure DNS records for (recommended: https://porkbun.com/)
+- Basic VPS (recommended: https://www.hetzner.com/cloud/ CAX11)
 
 ## Configuration
 
@@ -66,17 +67,22 @@ k3s-ansible/
 
 ## Usage
 
-1. Install required Ansible collections:
+1. Clone the repo
+   ```
+   git clone https://github.com/rtomik/k3s_ansible.git && cd k3s_ansible && mv inventory.yml_example inventory.yml
+   ```
+    
+2. Install required Ansible collections:
    ```
    ansible-galaxy collection install -r requirements.yml
    ```
 
-2. Run the main playbook to deploy everything:
+3. Run the main playbook to deploy everything:
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-3. To deploy specific components, use tags:
+4. To deploy specific components, use tags:
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
