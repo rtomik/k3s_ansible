@@ -1,0 +1,10 @@
+---
+- name: Restart ssh
+  service:
+    name: ssh
+    state: restarted
+
+- name: Restart chrony
+  systemd:
+    name: chronyd
+    state: restarted

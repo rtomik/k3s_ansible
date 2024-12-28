@@ -1,0 +1,17 @@
+authentik:
+  secret_key: "{{ authentik_secret_key }}"
+  postgresql:
+    password: "{{ authentik_postgresql_password }}"
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.tls.certresolver: le
+  hosts:
+    - host: auth.{{ domain }}
+      paths:
+        - path: /
+  tls:
+    - secretName: authentik-tls
+      hosts:
+        - auth.{{ domain }}

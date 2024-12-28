@@ -1,0 +1,83 @@
+---
+- name: Check if ArgoCD is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: argocd-server
+    namespace: argocd
+  register: argocd_check
+  ignore_errors: true
+
+- name: Fetch ArgoCD Helm chart information
+  kubernetes.core.helm_info:
+    name: argocd
+    release_namespace: argocd
+  register: argocd_helm_info
+  ignore_errors: true
+
+- name: Deploy or upgrade ArgoCD
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo/argo-cd
+    chart_version: "{{ argocd_version }}"
+    release_namespace: argocd
+    create_namespace: yes
+    values:
+      server:
+        ingress:
+          enabled: true
+          annotations:
+            kubernetes.io/ingress.class: traefik
+            traefik.ingress.kubernetes.io/router.tls.certresolver: le
+          hosts:
+            - argocd.{{ domain }}
+          tls:
+            - secretName: argocd-tls
+              hosts:
+                - argocd.{{ domain }}
+      configs:
+        cm:
+          url: https://argocd.{{ domain }}
+          oidc.config: |
+            name: Authentik
+            issuer: https://auth.{{ domain }}/application/o/argocd/
+            clientID: $oidc.authentik.clientID
+            clientSecret: $oidc.authentik.clientSecret
+            requestedScopes: ["openid", "profile", "email"]
+    wait: yes
+    wait_timeout: 600
+  when: >
+    argocd_check.resources | length == 0 or
+    argocd_helm_info.status is defined and
+    argocd_helm_info.status.chart_version is version(argocd_version, '<')
+  register: argocd_deploy
+  until: argocd_deploy is succeeded
+  retries: 3
+  delay: 10
+
+- name: Wait for ArgoCD to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: argocd
+    label_selectors:
+      - app.kubernetes.io/name=argocd-server
+  register: argocd_pods
+  until: >
+    argocd_pods.resources | length > 0 and
+    (argocd_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+  retries: 20
+  delay: 30
+  when: argocd_deploy is changed
+
+- name: Retrieve ArgoCD admin password
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: argocd-initial-admin-secret
+    namespace: argocd
+  register: argocd_admin_secret
+  when: argocd_deploy is changed
+
+- name: Display ArgoCD admin password
+  debug:
+    msg: "ArgoCD admin password: {{ argocd_admin_secret.resources[0].data.password | b64decode }}"
+  when: argocd_deploy is changed and argocd_admin_secret.resources | length > 0
