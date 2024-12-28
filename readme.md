@@ -54,7 +54,7 @@ k3s-ansible/
 ## Prerequisites
 
 - Ansible 2.9 or higher
-- Node with installed Ubuntu 24.04
+- Nodes with installed Ubuntu 24.04
 - SSH access to all nodes
 - `kubectl` installed on your local machine
 - A custom domain that you control and can configure DNS records for (recommended: https://porkbun.com/)
@@ -69,25 +69,34 @@ k3s-ansible/
 
 1. Clone the repo
    ```
-   git clone https://github.com/rtomik/k3s_ansible.git && cd k3s_ansible && mv inventory.yml_example inventory.yml
+   git clone https://github.com/rtomik/k3s_ansible.git && \
+   cd k3s_ansible && \ 
+   mv inventory.yml_ex inventory.yml && \
+   mv group_vars/all/main.yml_ex group_vars/all/main.yml
    ```
-    
-2. Install required Ansible collections:
+
+2. Create vault 
+   ```
+   echo "vault_k3s_token: $(openssl rand -base64 48)" | ansible-vault create group_vars/all/vault.yml
+   ```
+   Save the password to .vault
+
+3. Install required Ansible collections:
    ```
    ansible-galaxy collection install -r requirements.yml
    ```
 
-3. Run the main playbook to deploy everything:
+4. Run the main playbook to deploy everything:
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-4. To deploy specific components, use tags:
+5. To deploy specific components, use tags:
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-5. To destroy the cluster and remove everything:
+6. To destroy the cluster and remove everything:
    ```
    ansible-playbook playbooks/destroy.yml
    ```

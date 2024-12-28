@@ -1,0 +1,73 @@
+- name: Download Docker installation script
+  get_url:
+    url: https://get.docker.com
+    dest: /tmp/get-docker.sh
+    mode: '0755'
+
+- name: Execute Docker installation script
+  command: sh /tmp/get-docker.sh
+  args:
+    creates: /usr/bin/docker
+
+- name: Ensure Docker service is running
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Install docker-compose
+  get_url: 
+    url: https://github.com/docker/compose/releases/download/v2.32.1/docker-compose-linux-armv7
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+
+- name: Create a network
+  docker_network:
+    name: web
+
+- name: Add user to docker group
+  user:
+    name: "{{ user }}"
+    groups: docker
+    append: yes
+
+- name: Install required Python packages
+  apt:
+    name:
+      - python3-docker
+    state: present
+    update_cache: yes
+
+#Install traefik
+- name: Create Traefik directory
+  file:
+    path: /etc/docker/traefik
+    state: directory
+    mode: '0755'
+
+- name: Copy docker-compose.yml file
+  template:
+    src: docker-compose.yml.j2
+    dest: /etc/docker/traefik/docker-compose.yml
+    mode: '0644'
+  register: compose_file
+
+- name: Check if containers are running
+  command: docker-compose ps -q
+  args:
+    chdir: /etc/docker/traefik
+  register: container_status
+  changed_when: false
+  ignore_errors: true
+
+- name: Stop and remove existing containers if docker-compose file changed
+  command: docker-compose down --remove-orphans
+  args:
+    chdir: /etc/docker/traefik
+  when: compose_file.changed or container_status.rc != 0
+
+- name: Deploy traefik using docker-compose
+  command: docker-compose up -d --remove-orphans
+  args:
+    chdir: /etc/docker/traefik
+  register: docker_output
