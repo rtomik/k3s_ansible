@@ -1,6 +1,0 @@
-{
-    "yaml.schemas": {
-        "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json": "file:///c%3A/Users/User/Documents/projects/k3s_ansible/roles/apps/tasks/traefik.yml",
-        "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/tasks": "file:///c%3A/Users/User/Documents/projects/k3s_ansible/roles/03_apps/tasks/traefik.yml"
-    }
-}
