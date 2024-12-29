@@ -18,15 +18,12 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 
 - Ansible 2.9 or higher
 - Nodes with installed Ubuntu 24.04
-- SSH access to all nodes
+- SSH access to all nodes (ssh keys to root)
 - `kubectl` installed on your local machine
 - A custom domain that you control and can configure DNS records for (recommended: https://porkbun.com/)
 - Basic VPS (recommended: https://www.hetzner.com/cloud/ CAX11)
+- Login to Tailscale https://login.tailscale.com/admin/settings/keys create new auth keys
 
-## Configuration
-
-1. Update `inventory.yml` with your node IP addresses and SSH user.
-2. Modify `group_vars/all.yml` to set your desired versions, configurations, and variables
 
 ## Usage
 
@@ -38,28 +35,33 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    mv group_vars/all/main.yml_ex group_vars/all/main.yml
    ```
 
-2. Create vault 
+2. Update `inventory.yml` with your node IP addresses and SSH user.
+
+   Modify `group_vars/all.yml` to set your desired versions, configurations, and variables
+
+3. Create vault 
    ```
    echo "vault_k3s_token: $(openssl rand -base64 48)" | ansible-vault create group_vars/all/vault.yml
    ```
+   Add tailscale key to: vault_tailscale_key
    Save the password to .vault
 
-3. Install required Ansible collections:
+4. Install required Ansible collections:
    ```
    ansible-galaxy collection install -r requirements.yml
    ```
 
-4. Run the main playbook to deploy everything:
+5. Run the main playbook to deploy everything:
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-5. To deploy specific components, use tags:
+6. To deploy specific components, use tags:
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-6. To destroy the cluster and remove everything:
+7. To destroy the cluster and remove everything:
    ```
    ansible-playbook playbooks/destroy.yml
    ```

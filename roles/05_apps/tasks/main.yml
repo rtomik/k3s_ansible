@@ -29,11 +29,6 @@
     - apps
     - apps:rancher
 
-- import_tasks: traefik.yml
-  tags:
-    - apps
-    - apps:traefik
-
 - import_tasks: authentik.yml
   tags:
     - apps

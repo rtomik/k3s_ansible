@@ -1,0 +1,32 @@
+- name: Create Traefik directory
+  file:
+    path: /etc/docker/traefik
+    state: directory
+    mode: '0755'
+
+- name: Copy docker-compose.yml file
+  template:
+    src: docker-compose.yml.j2
+    dest: /etc/docker/traefik/docker-compose.yml
+    mode: '0644'
+  register: compose_file
+
+- name: Check if containers are running
+  command: docker-compose ps -q
+  args:
+    chdir: /etc/docker/traefik
+  register: container_status
+  changed_when: false
+  ignore_errors: true
+
+- name: Stop and remove existing containers if docker-compose file changed
+  command: docker-compose down --remove-orphans
+  args:
+    chdir: /etc/docker/traefik
+  when: compose_file.changed or container_status.rc != 0
+
+- name: Deploy traefik using docker-compose
+  command: docker-compose up -d --remove-orphans
+  args:
+    chdir: /etc/docker/traefik
+  register: docker_output

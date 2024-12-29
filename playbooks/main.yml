@@ -31,7 +31,8 @@
     - role: 02_base_config
       tags:
         - config
-        - prep
+        - config:firewall
+        - config:tailscale
 
 - name: Deploy and configure Traefik on VPS proxy
   hosts: proxy
