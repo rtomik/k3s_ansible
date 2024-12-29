@@ -2,6 +2,7 @@
 # Domain configuration
 domain: your_dmain
 email: email
+k3s_tailscale_ip: 
 
 # K3S versions
 k3s_version: v1.31.2+k3s1
