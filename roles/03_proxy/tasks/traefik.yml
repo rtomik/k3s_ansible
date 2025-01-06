@@ -11,6 +11,12 @@
     mode: '0644'
   register: compose_file
 
+- name: Copy dynamic_conf file
+  template:
+    src: dynamic_conf.yaml.j2
+    dest: /etc/docker/traefik/dynamic_conf/dynamic_conf.yaml
+    mode: '0644'
+
 - name: Check if containers are running
   command: docker-compose ps -q
   args:

@@ -10,9 +10,6 @@
     dest: /tmp/k3s_install.sh
     mode: '0755'
   when: not k3s_binary.stat.exists
-  tags:
-    - k3s
-    - k3s:install
 
 - name: Install k3s server
   command:
@@ -25,9 +22,6 @@
     - not k3s_binary.stat.exists
     - inventory_hostname == groups['k3s_cluster'][0]
   notify: Restart k3s
-  tags:
-    - k3s
-    - k3s:install
 
 - name: Install k3s agent
   command:
@@ -40,27 +34,18 @@
     - not k3s_binary.stat.exists
     - inventory_hostname != groups['k3s_cluster'][0]
   notify: Restart k3s
-  tags:
-    - k3s
-    - k3s:install
 
 - name: Ensure k3s service is enabled and started
   systemd:
     name: k3s
     enabled: yes
     state: started
-  tags:
-    - k3s
-    - k3s:service
 
 - name: Get kubeconfig from primary node
   slurp:
     src: /etc/rancher/k3s/k3s.yaml
   register: k3s_kubeconfig
   when: inventory_hostname == groups['k3s_cluster'][0]
-  tags:
-    - k3s
-    - k3s:config
 
 - name: Check if local kubeconfig exists
   stat:
@@ -68,9 +53,7 @@
   delegate_to: localhost
   register: local_kubeconfig
   when: inventory_hostname == groups['k3s_cluster'][0]
-  tags:
-    - k3s
-    - k3s:config
+
 
 - name: Store kubeconfig locally
   copy:
@@ -80,9 +63,6 @@
   when: 
     - inventory_hostname == groups['k3s_cluster'][0]
     - not local_kubeconfig.stat.exists
-  tags:
-    - k3s
-    - k3s:config
 
 - name: Ensure .kube directory exists
   file:
@@ -102,3 +82,15 @@
     path: ~/.bashrc
     line: 'export KUBECONFIG=~/.kube/config'
     create: yes
+
+- name: Get Tailscale IP
+  ansible.builtin.command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+  
+- name: Update k3s configuration
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system/k3s.service
+    regexp: '^ExecStart=/usr/local/bin/k3s'
+    line: 'ExecStart=/usr/local/bin/k3s server --node-ip={{ tailscale_ip.stdout }} --advertise-address={{ tailscale_ip.stdout }}'
+  notify: Restart k3s

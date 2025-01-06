@@ -51,7 +51,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    ansible-galaxy collection install -r requirements.yml
    ```
 
-5. Run the main playbook to deploy everything:
+5. Run the main playbook
    ```
    ansible-playbook playbooks/main.yml
    ```
@@ -76,6 +76,54 @@ After successful deployment:
 4. Use Authentik for Single Sign-On (SSO) at `https://auth.<your-domain>`
 5. Access Prometheus at `https://prometheus.<your-domain>`
 
+## Diagram
+
+``` mermaid
+graph TD
+    Internet((Internet)) --> Firewall
+    Firewall --> VPS[VPS with Traefik]
+    VPS <--> |Tailscale| K3s
+    subgraph "Physical Infrastructure"
+        MiniPC1[Mini PC 1]
+        MiniPC2[Mini PC 2]
+        MiniPC3[Mini PC 3]
+    end
+    subgraph "Kubernetes Cluster"
+        MiniPC1 & MiniPC2 & MiniPC3 --> K3s
+        K3s --> ArgoCD
+        K3s --> Authentik
+        K3s --> Apps
+        ArgoCD --> GitRepo[(Git Repository)]
+        ArgoCD --> Apps
+        subgraph "Monitoring"
+            style Monitoring fill:#ffffff,stroke:#333,stroke-width:2px,color:#333
+            Prometheus --> Grafana
+        end
+        subgraph "Logging"
+            Graylog
+        end
+        subgraph "Apps"
+            Homepage
+            Immich
+            OtherApps[Other Apps]
+        end
+        Apps --> Prometheus
+        Apps --> Graylog
+        Authentik --> Apps
+        Authentik --> ArgoCD
+        Authentik --> Grafana
+        Velero --> HetznerBackup[(Hetzner Backup)]
+    end
+    classDef default fill:#f0f0f0,stroke:#333,stroke-width:2px,color:#333;
+    classDef k8s fill:#326ce5,stroke:#333,stroke-width:2px,color:#fff;
+    classDef ext fill:#ffd966,stroke:#333,stroke-width:2px;
+    classDef hardware fill:#d5e8d4,stroke:#82b366,stroke-width:2px;
+    classDef vps fill:#ff9999,stroke:#333,stroke-width:2px;
+    class K3s,K3sTraefik,ArgoCD,Authentik,Apps,Prometheus,Grafana,Graylog,K8sCluster,Velero k8s;
+    class GitRepo,HetznerBackup ext;
+    class MiniPC1,MiniPC2,MiniPC3 hardware;
+    class VPS vps;
+```
 
 ## Contributing
 

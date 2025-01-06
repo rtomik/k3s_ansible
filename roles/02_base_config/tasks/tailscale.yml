@@ -32,3 +32,6 @@
 
 - name: Connect to Tailscale network
   ansible.builtin.command: tailscale up --authkey={{ vault_tailscale_key }}
+  args:
+    creates: /var/lib/tailscale/tailscaled.state
+
