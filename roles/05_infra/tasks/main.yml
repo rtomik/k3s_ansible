@@ -1,0 +1,51 @@
+- name: Install Helm
+  shell: |
+    curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+  tags:
+    - infra
+    - infra:helm
+
+- name: Add Helm repositories
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    repo_url: "{{ item.url }}"
+  loop:
+    - { name: traefik, url: "https://helm.traefik.io/traefik" }
+    - { name: authentik, url: "https://charts.goauthentik.io" }
+    - { name: argo, url: "https://argoproj.github.io/argo-helm" }
+    - { name: longhorn, url: "https://charts.longhorn.io" }
+    - { name: prometheus-community, url: "https://prometheus-community.github.io/helm-charts" }
+    - { name: rancher-stable, url: "https://releases.rancher.com/server-charts/stable" }
+    - { name: jetstack, url: "https://charts.jetstack.io" }
+    - { name: metallb, url: "https://metallb.github.io/metallb" } 
+  tags:
+    - infra
+    - infra:repos
+
+- import_tasks: metalb.yml
+  tags:
+    - infra
+    - infra:metalb
+
+- import_tasks: rancher.yml
+  tags:
+    - infra
+    - infra:rancher
+
+- import_tasks: argocd.yml
+  tags:
+    - infra
+    - infra:argocd
+
+- import_tasks: longhorn.yml
+  tags:
+    - apps
+    - apps:longhorn
+
+- import_tasks: monitoring.yml
+  tags:
+    - apps
+    - apps:monitoring
+

@@ -21,7 +21,6 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 - SSH access to all nodes (ssh keys to root)
 - `kubectl` installed on your local machine
 - A custom domain that you control and can configure DNS records for (recommended: https://porkbun.com/)
-- Basic VPS (recommended: https://www.hetzner.com/cloud/ CAX11)
 - Login to Tailscale https://login.tailscale.com/admin/settings/keys create new auth keys
 
 
@@ -35,16 +34,15 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    mv group_vars/all/main.yml_ex group_vars/all/main.yml
    ```
 
-2. Update `inventory.yml` with your node IP addresses and SSH user.
+2. Update `inventory.yml` with your node IP addresses.
 
    Modify `group_vars/all.yml` to set your desired versions, configurations, and variables
 
-3. Create vault 
+3. Editt vault 
    ```
-   echo "vault_k3s_token: $(openssl rand -base64 48)" | ansible-vault create group_vars/all/vault.yml
+   ansible-vault edit 
    ```
    Add tailscale key to: vault_tailscale_key
-   Save the password to .vault
 
 4. Install required Ansible collections:
    ```

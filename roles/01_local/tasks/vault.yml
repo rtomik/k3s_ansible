@@ -1,0 +1,74 @@
+- name: Create or Update Ansible Vault
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars:
+    vault_file: "../group_vars/all/vault.yml"
+    vault_password_file: "../.vault"
+  tasks:
+    - name: Check if vault file exists
+      stat:
+        path: "{{ vault_file }}"
+      register: vault_file_check
+
+    - name: Check if vault password file exists
+      stat:
+        path: "{{ vault_password_file }}"
+      register: vault_pass_file
+
+    - name: Create vault password file if it doesn't exist
+      copy:
+        content: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+        dest: "{{ vault_password_file }}"
+        mode: '0600'
+      when: not vault_pass_file.stat.exists
+
+    - name: Generate random k3s token
+      command: openssl rand -base64 48
+      register: k3s_token
+      changed_when: false
+      when: not vault_file_check.stat.exists
+
+    - name: Create vault content
+      set_fact:
+        vault_content: "vault_k3s_token: \"{{ k3s_token.stdout }}\""
+      when: not vault_file_check.stat.exists
+
+    - name: Create temporary unencrypted vault file
+      copy:
+        content: "{{ vault_content }}"
+        dest: "/tmp/temp_vault.yml"
+      changed_when: false
+      when: not vault_file_check.stat.exists
+
+    - name: Encrypt vault file
+      command: >
+        ansible-vault encrypt 
+        --vault-password-file {{ vault_password_file }} 
+        --output {{ vault_file }} 
+        /tmp/temp_vault.yml
+      register: encrypt_result
+      changed_when: encrypt_result.rc == 0
+      when: not vault_file_check.stat.exists
+
+    - name: Remove temporary unencrypted vault file
+      file:
+        path: "/tmp/temp_vault.yml"
+        state: absent
+      changed_when: false
+      when: not vault_file_check.stat.exists
+
+    - name: Display information about existing vault
+      debug:
+        msg: 
+          - "Vault file already exists at: {{ vault_file }}"
+          - "No changes were made to the existing vault."
+      when: vault_file_check.stat.exists
+
+    - name: Display information about new vault
+      debug:
+        msg: 
+          - "New vault file created at: {{ vault_file }}"
+          - "Vault password file located at: {{ vault_password_file }}"
+      when: not vault_file_check.stat.exists

@@ -24,28 +24,13 @@
     - apps
     - apps:repos
 
-- import_tasks: rancher.yml
-  tags:
-    - apps
-    - apps:rancher
+
 
 - import_tasks: authentik.yml
   tags:
     - apps
     - apps:authentik
 
-- import_tasks: argocd.yml
-  tags:
-    - apps
-    - apps:argocd
 
-- import_tasks: longhorn.yml
-  tags:
-    - apps
-    - apps:longhorn
 
-- import_tasks: monitoring.yml
-  tags:
-    - apps
-    - apps:monitoring
 

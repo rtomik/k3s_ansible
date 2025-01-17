@@ -19,8 +19,17 @@
 
     - name: Create ansible user
       include_role:
-        name: 01_create_user
+        name: 02_create_user
       when: initial_setup | default(false)
+
+- name: Create vault
+  hosts: localhost
+  become: true
+  roles:
+    - role: 01_local
+      tags:
+        - local
+        - vault
 
 - name: Prepare and harden servers
   hosts: all
@@ -28,23 +37,12 @@
   vars:
     ansible_user: "{{ user }}"
   roles:
-    - role: 02_base_config
+    - role: 03_base_config
       tags:
         - config
         - config:firewall
         - config:tailscale
 
-# - name: Deploy and configure Traefik on VPS proxy
-#   hosts: proxy
-#   become: true
-#   vars:
-#     ansible_user: "{{ user }}"
-#   roles:
-#     - role: 03_proxy
-#       tags:
-#         - proxy
-#         - traefik
-        
 - name: Deploy k3s cluster
   hosts: k3s_cluster
   become: true
@@ -55,13 +53,23 @@
       tags:
         - k3s
 
+- name: Deploy infrastructure applications
+  hosts: k3s_cluster[0]
+  become: true
+  vars:
+    ansible_user: "{{ user }}"
+  roles:
+    - role: 05_infra
+      tags:
+        - infra
+
 - name: Deploy applications
   hosts: k3s_cluster[0]
   become: true
   vars:
     ansible_user: "{{ user }}"
   roles:
-    - role: 05_apps
+    - role: 06_apps
       tags:
         - apps
         - apps:helm
