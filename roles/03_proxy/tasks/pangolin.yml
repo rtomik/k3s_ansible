@@ -1,0 +1,56 @@
+- name: Create pangolin directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /etc/docker/pangolin/config
+    - /etc/docker/pangolin/config/db
+    - /etc/docker/pangolin/config/letsencrypt
+    - /etc/docker/pangolin/config/logs
+    - /etc/docker/pangolin/config/traefik
+
+- name: Copy docker-compose.yml file
+  template:
+    src: docker-compose.yml.j2
+    dest: /etc/docker/pangolin/docker-compose.yml
+    mode: '0644'
+  register: compose_file
+
+- name: Copy traefik dynamic_conf file
+  template:
+    src: dynamic_conf.yml.j2
+    dest: /etc/docker/pangolin/config/traefik/dynamic_config.yml
+    mode: '0644'
+
+- name: Copy traefik config file
+  template:
+    src: traefik_config.yml.j2
+    dest: /etc/docker/pangolin/config/traefik/traefik_config.yml
+    mode: '0644'
+
+- name: Copy pangolin config file
+  template:
+    src: config.yml.j2
+    dest: /etc/docker/pangolin/config/config.yml
+    mode: '0644'
+
+- name: Check if containers are running
+  command: docker-compose ps -q
+  args:
+    chdir: /etc/docker/pangolin
+  register: container_status
+  changed_when: false
+  ignore_errors: true
+
+- name: Stop and remove existing containers if docker-compose file changed
+  command: docker-compose down --remove-orphans
+  args:
+    chdir: /etc/docker/pangolin
+  when: compose_file.changed or container_status.rc != 0
+
+- name: Deploy pangolin using docker-compose
+  command: docker-compose up -d --remove-orphans
+  args:
+    chdir: /etc/docker/pangolin
+  register: docker_output

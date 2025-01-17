@@ -1,7 +1,5 @@
 ---
-- hosts: all
-  tags:
-    - destroy
+- hosts: k3s_cluster
   tasks:
     - name: Stop k3s service
       systemd:
@@ -39,11 +37,7 @@
         state: absent
       delegate_to: localhost
       run_once: true
-
-- hosts: k3s_cluster[0]
-  tags:
-    - destroy
-  tasks:
+      
     - name: Remove Helm
       file:
         path: /usr/local/bin/helm

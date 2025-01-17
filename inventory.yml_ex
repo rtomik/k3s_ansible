@@ -4,7 +4,3 @@ all:
       hosts:
         server1:
           ansible_host: <Local IP of server>
-    proxy:
-      hosts:
-        proxy1:
-          ansible_host: <Public ip of proxy>

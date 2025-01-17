@@ -3,7 +3,11 @@
     - proxy
     - proxy:docker
 
-- import_tasks: traefik.yml
-  tags:
-    - proxy
-    - proxy:traefik
+# - import_tasks: traefik.yml
+#   tags:
+#     - proxy
+#     - proxy:traefik
+
+# - import_tasks: pangolin.yml
+#   tags:
+#     - proxy

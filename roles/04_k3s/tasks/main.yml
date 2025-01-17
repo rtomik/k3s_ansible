@@ -11,6 +11,13 @@
     mode: '0755'
   when: not k3s_binary.stat.exists
 
+- name: Get Tailscale IP
+  command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+  when: 
+    - inventory_hostname == groups['k3s_cluster'][0]
+
 - name: Install k3s server
   command:
     cmd: /tmp/k3s_install.sh server
@@ -54,7 +61,6 @@
   register: local_kubeconfig
   when: inventory_hostname == groups['k3s_cluster'][0]
 
-
 - name: Store kubeconfig locally
   copy:
     content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['k3s_cluster'][0]]['ansible_host']) }}"
@@ -82,15 +88,3 @@
     path: ~/.bashrc
     line: 'export KUBECONFIG=~/.kube/config'
     create: yes
-
-- name: Get Tailscale IP
-  ansible.builtin.command: tailscale ip -4
-  register: tailscale_ip
-  changed_when: false
-  
-- name: Update k3s configuration
-  ansible.builtin.lineinfile:
-    path: /etc/systemd/system/k3s.service
-    regexp: '^ExecStart=/usr/local/bin/k3s'
-    line: 'ExecStart=/usr/local/bin/k3s server --node-ip={{ tailscale_ip.stdout }} --advertise-address={{ tailscale_ip.stdout }}'
-  notify: Restart k3s

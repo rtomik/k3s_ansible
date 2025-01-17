@@ -1,12 +1,11 @@
 ---
 # Domain configuration
-domain: your_dmain
+domain: domain.com
 email: email
-k3s_tailscale_ip: 
 
 # K3S versions
 k3s_version: v1.31.2+k3s1
-k3s_server_args: "server --disable traefik --tls-san {{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}"
+k3s_server_args: "server --tls-san {{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}"
 k3s_token: "{{ vault_k3s_token }}"
 
 # Proxy version

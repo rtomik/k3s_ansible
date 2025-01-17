@@ -1,41 +1,51 @@
 services:
-  traefik:
-    image: traefik:v{{ traefik_version }}
-    container_name: traefik
-    command:
-      - --log.level=DEBUG
-      - --api.insecure=false
-      - --api.dashboard=false
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.myresolver.acme.email={{email}}
-      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.myresolver.acme.httpchallenge=true
-      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
-      - --providers.docker.network=web
-      - --providers.file.directory=/etc/traefik/dynamic_conf
-      - --providers.file.watch=true
-    ports:
-      - 80:80
-      - 443:443
-    environment:
-      - TZ={{ timezone }}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./letsencrypt:/letsencrypt
-      - ./dynamic_conf:/etc/traefik/dynamic_conf
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.k3s.rule=HostRegexp(`{subdomain:[a-zA-Z0-9-]+}.tomik.lat`) || Host(`tomik.lat`)"
-      - "traefik.http.routers.k3s.entrypoints=websecure"
-      - "traefik.http.routers.k3s.tls.certresolver=myresolver"
-      - "traefik.http.routers.k3s.service=k3s-service@file"
+  pangolin:
+    image: fosrl/pangolin:1.0.0-beta.1
+    container_name: pangolin
     restart: unless-stopped
-    networks:
-      - web
+    ports:
+      - 3001:3001
+      - 3000:3000
+    volumes:
+      - ./config:/app/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/"]
+      interval: "3s"
+      timeout: "3s"
+      retries: 5
 
-networks:
-  web:
-    external: true
+  gerbil:
+    image: fosrl/gerbil:1.0.0-beta.1
+    container_name: gerbil
+    restart: unless-stopped
+    depends_on:
+      pangolin:
+        condition: service_healthy
+    command:
+      - --reachableAt=http://gerbil:3003
+      - --generateAndSaveKeyTo=/var/config/key
+      - --remoteConfig=http://pangolin:3001/api/v1/gerbil/get-config
+      - --reportBandwidthTo=http://pangolin:3001/api/v1/gerbil/receive-bandwidth
+    volumes:
+      - ./config/:/var/config
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    ports:
+      - 51820:51820/udp
+      - 443:443 # Port for traefik because of the network_mode
+      - 80:80 # Port for traefik because of the network_mode
+
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    network_mode: service:gerbil # Ports appear on the gerbil service
+    depends_on:
+      pangolin:
+        condition: service_healthy
+    command:
+      - --configFile=/etc/traefik/traefik_config.yml
+    volumes:
+      - ./config/traefik:/etc/traefik:ro
+      - ./config/letsencrypt:/letsencrypt
