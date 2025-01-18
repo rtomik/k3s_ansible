@@ -23,7 +23,7 @@
     release_namespace: longhorn-system
     create_namespace: yes
     wait: yes
-    wait_timeout: 600
+    wait_timeout: 10m
     values:
       persistence:
         defaultClass: true
@@ -31,8 +31,9 @@
         defaultDataPath: "/var/lib/longhorn"
   when: >
     longhorn_check.resources | length == 0 or
-    longhorn_helm_info.status is defined and
-    longhorn_helm_info.status.chart_version is version(longhorn_version, '<')
+    (longhorn_helm_info.status is defined and
+     longhorn_helm_info.status.chart_version is defined and
+     longhorn_helm_info.status.chart_version is version(longhorn_version, '<'))
   register: longhorn_deploy
   until: longhorn_deploy is succeeded
   retries: 3

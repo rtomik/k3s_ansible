@@ -41,11 +41,16 @@
 
 - import_tasks: longhorn.yml
   tags:
-    - apps
-    - apps:longhorn
+    - infra
+    - infra:longhorn
 
 - import_tasks: monitoring.yml
   tags:
-    - apps
-    - apps:monitoring
+    - infra
+    - infra:monitoring
+
+- import_tasks: authentik.yml
+  tags:
+    - infra
+    - infra:authentik
 

@@ -3,7 +3,7 @@
   kubernetes.core.k8s_info:
     api_version: apps/v1
     kind: Deployment
-    name: prometheus-server
+    name: prometheus-kube-prometheus-operator
     namespace: monitoring
   register: prometheus_check
   ignore_errors: true
@@ -41,12 +41,12 @@
             name: Authentik
             allow_sign_up: true
             client_id: "{{ grafana_oauth_client_id }}"
-            client_secret: "{{ grafana_oauth_client_secret }}"
             scopes: openid profile email
             auth_url: https://auth.{{ domain }}/application/o/authorize/
             token_url: https://auth.{{ domain }}/application/o/token/
             api_url: https://auth.{{ domain }}/application/o/userinfo/
             role_attribute_path: contains(groups[*], 'Grafana Admins') && 'Admin' || contains(groups[*], 'Grafana Editors') && 'Editor' || 'Viewer'
+        envFromSecret: grafana-oauth-secret
       prometheus:
         ingress:
           enabled: true
@@ -60,12 +60,26 @@
               hosts:
                 - prometheus.{{ domain }}
     wait: yes
-    wait_timeout: 600
+    wait_timeout: 1m
   when: >
     prometheus_check.resources | length == 0 or
-    prometheus_helm_info.status is defined and
-    prometheus_helm_info.status.chart_version is version(prometheus_stack_version, '<')
+    (prometheus_helm_info.status is defined and
+     prometheus_helm_info.status.chart_version is defined and
+     prometheus_helm_info.status.chart_version is version(prometheus_stack_version, '<'))
   register: prometheus_deploy
+
+- name: Create Grafana OAuth secret
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-oauth-secret
+        namespace: monitoring
+      type: Opaque
+      stringData:
+        GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: "{{ grafana_oauth_client_secret }}"
+  when: prometheus_deploy is changed
 
 - name: Wait for Prometheus to be ready
   kubernetes.core.k8s_info:

@@ -24,11 +24,12 @@
     create_namespace: yes
     values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"
     wait: yes
-    wait_timeout: 600
+    wait_timeout: 1m 
   when: >
     authentik_check.resources | length == 0 or
-    authentik_helm_info.status is defined and
-    authentik_helm_info.status.chart_version is version(authentik_version, '<')
+    (authentik_helm_info.status is defined and
+     authentik_helm_info.status.chart_version is defined and
+     authentik_helm_info.status.chart_version is version(authentik_version, '<'))
   register: authentik_deploy
   until: authentik_deploy is succeeded
   retries: 3

@@ -1,5 +1,15 @@
 ---
-- name: Check if ansible user exists and create if necessary
+- name: 01 Create vault
+  hosts: localhost
+  connection: local
+  become: true
+  roles:
+    - role: 01_local
+      tags:
+        - local
+        - vault
+
+- name: 02 Check if ansible user exists and create if necessary
   hosts: all
   gather_facts: false
   vars:
@@ -22,16 +32,7 @@
         name: 02_create_user
       when: initial_setup | default(false)
 
-- name: Create vault
-  hosts: localhost
-  become: true
-  roles:
-    - role: 01_local
-      tags:
-        - local
-        - vault
-
-- name: Prepare and harden servers
+- name: 03 Prepare and harden servers
   hosts: all
   become: true
   vars:
@@ -43,7 +44,7 @@
         - config:firewall
         - config:tailscale
 
-- name: Deploy k3s cluster
+- name: 04 Deploy k3s cluster
   hosts: k3s_cluster
   become: true
   vars:
@@ -53,7 +54,7 @@
       tags:
         - k3s
 
-- name: Deploy infrastructure applications
+- name: 05 Deploy infrastructure applications
   hosts: k3s_cluster[0]
   become: true
   vars:
@@ -63,7 +64,7 @@
       tags:
         - infra
 
-- name: Deploy applications
+- name: 06 Deploy applications
   hosts: k3s_cluster[0]
   become: true
   vars:

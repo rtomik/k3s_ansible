@@ -1,0 +1,77 @@
+---
+- name: Check if Jellyfin is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: jellyfin
+    namespace: jellyfin
+  register: jellyfin_check
+  ignore_errors: true
+  when: deploy_jellyfin | bool
+
+- name: Fetch jellyfin Helm chart information
+  kubernetes.core.helm_info:
+    name: jellyfin
+    release_namespace: jellyfin
+  register: jellyfin_helm_info
+  ignore_errors: true
+  when: deploy_jellyfin | bool
+
+- name: Deploy or upgrade Jellyfin
+  kubernetes.core.helm:
+    name: jellyfin
+    chart_ref: jellyfin/jellyfin
+    chart_version: "{{ jellyfin_version }}"
+    release_namespace: "jellyfin"
+    create_namespace: yes
+    values:
+      ingress:
+        enabled: true
+        annotations:
+          kubernetes.io/ingress.class: traefik
+          traefik.ingress.kubernetes.io/router.tls.certresolver: le
+        hosts:
+          - host: jellyfin.{{ domain }}
+            paths:
+              - path: /
+                pathType: Prefix
+        tls:
+          - secretName: jellyfin-tls
+            hosts:
+              - jellyfin.{{ domain }}
+      persistence:
+        config:
+          enabled: true
+          size: 1Gi
+        media:
+          enabled: true
+          size: 100Gi
+          storageClass: longhorn
+    wait: yes
+    wait_timeout: 1m
+  when: >
+    deploy_jellyfin | bool and
+    (jellyfin_check.resources | length == 0 or
+    (jellyfin_helm_info.status is defined and
+      jellyfin_helm_info.status.chart_version is defined and
+      jellyfin_helm_info.status.chart_version is version(jellyfin_version, '<')))
+  register: jellyfin_deploy
+
+- name: Wait for jellyfin to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: jellyfin
+    label_selectors:
+      - app.kubernetes.io/name=jellyfin
+  register: jellyfin_pods
+  until: >
+    jellyfin_pods.resources | length > 0 and
+    (jellyfin_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+  retries: 20
+  delay: 30
+  when: deploy_jellyfin | bool and jellyfin_deploy is changed
+
+- name: Display Jellyfin URL
+  debug:
+    msg: "Jellyfin is now available at https://jellyfin.{{ domain }}"
+  when: deploy_jellyfin | bool and jellyfin_deploy is changed

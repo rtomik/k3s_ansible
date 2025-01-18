@@ -45,11 +45,12 @@
             clientSecret: $oidc.authentik.clientSecret
             requestedScopes: ["openid", "profile", "email"]
     wait: yes
-    wait_timeout: 600
+    wait_timeout: 10m
   when: >
     argocd_check.resources | length == 0 or
-    argocd_helm_info.status is defined and
-    argocd_helm_info.status.chart_version is version(argocd_version, '<')
+    (argocd_helm_info.status is defined and
+     argocd_helm_info.status.chart_version is defined and
+     argocd_helm_info.status.chart_version is version(argocd_version, '<'))
   register: argocd_deploy
   until: argocd_deploy is succeeded
   retries: 3

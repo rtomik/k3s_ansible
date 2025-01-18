@@ -20,8 +20,8 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 - Nodes with installed Ubuntu 24.04
 - SSH access to all nodes (ssh keys to root)
 - `kubectl` installed on your local machine
-- A custom domain that you control and can configure DNS records for (recommended: https://porkbun.com/)
-- Login to Tailscale https://login.tailscale.com/admin/settings/keys create new auth keys
+- Domain (recommended: https://porkbun.com/ or https://www.duckdns.org/)
+- Login to Tailscale https://login.tailscale.com/admin/settings/keys and create new auth keys
 
 
 ## Usage
@@ -34,32 +34,36 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    mv group_vars/all/main.yml_ex group_vars/all/main.yml
    ```
 
-2. Update `inventory.yml` with your node IP addresses.
-
+2. Update variables
+   Modify `inventory.yml` with your node IP addresses.
    Modify `group_vars/all.yml` to set your desired versions, configurations, and variables
 
-3. Editt vault 
+3. Create vault
    ```
-   ansible-vault edit 
+   ansible-playbook playbooks/main.yml --tags "vault"
    ```
-   Add tailscale key to: vault_tailscale_key
 
-4. Install required Ansible collections:
+4. Add tailscale key to vault 
+   ```
+   ansible-vault edit group_var/all/vault.yml
+   ```
+
+5. Install required Ansible collections:
    ```
    ansible-galaxy collection install -r requirements.yml
    ```
 
-5. Run the main playbook
+6. Run the main playbook
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-6. To deploy specific components, use tags:
+7. To deploy specific components, use tags:
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-7. To destroy the cluster and remove everything:
+8. To destroy the cluster and remove everything:
    ```
    ansible-playbook playbooks/destroy.yml
    ```
@@ -122,10 +126,6 @@ graph TD
     class MiniPC1,MiniPC2,MiniPC3 hardware;
     class VPS vps;
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
