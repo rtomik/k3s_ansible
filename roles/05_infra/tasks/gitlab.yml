@@ -1,0 +1,82 @@
+---
+- name: Check if GitLab is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: gitlab-webservice-default
+    namespace: gitlab
+  register: gitlab_check
+  ignore_errors: true
+  when: deploy_gitlab | bool
+
+- name: Fetch GitLab Helm chart information
+  kubernetes.core.helm_info:
+    name: gitlab
+    release_namespace: gitlab
+  register: gitlab_helm_info
+  ignore_errors: true
+  when: deploy_gitlab | bool
+
+- name: Deploy or upgrade GitLab
+  kubernetes.core.helm:
+    name: gitlab
+    chart_ref: gitlab/gitlab
+    chart_version: "{{ gitlab_version }}"
+    release_namespace: gitlab
+    create_namespace: yes
+    values:
+      global:
+        hosts:
+          domain: "{{ domain }}"
+        ingress:
+          configureCertmanager: false
+          class: "traefik"
+          annotations:
+            traefik.ingress.kubernetes.io/router.tls.certresolver: le
+        edition: ce
+      certmanager:
+        install: false
+      nginx-ingress:
+        enabled: false
+      gitlab-runner:
+        install: false
+      prometheus:
+        install: false
+    wait: yes
+    wait_timeout: 15m
+  when: >
+    deploy_gitlab | bool and
+    (gitlab_check.resources | length == 0 or
+    (gitlab_helm_info.status is defined and
+      gitlab_helm_info.status.chart_version is defined and
+      gitlab_helm_info.status.chart_version is version(gitlab_version, '<')))
+  register: gitlab_deploy
+
+- name: Wait for GitLab to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: gitlab
+    label_selectors:
+      - app=webservice
+  register: gitlab_pods
+  until: >
+    gitlab_pods.resources | length > 0 and
+    (gitlab_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+  retries: 30
+  delay: 30
+  when: deploy_gitlab | bool and gitlab_deploy is changed
+
+- name: Get GitLab root password
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: gitlab-gitlab-initial-root-password
+    namespace: gitlab
+  register: gitlab_root_secret
+  when: deploy_gitlab | bool and gitlab_deploy is changed
+
+- name: Display GitLab URL and root password
+  debug:
+    msg: 
+      - "GitLab is now available at https://gitlab.{{ domain }}"
+      - "GitLab root password: {{ gitlab_root_secret.resources[0].data['password'] | b64decode }}"
+  when: deploy_gitlab | bool and gitlab_deploy is changed

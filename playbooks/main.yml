@@ -1,5 +1,5 @@
 ---
-- name: 01 Create vault
+- name: 01 Create vault and install collections
   hosts: localhost
   connection: local
   become: true
@@ -64,6 +64,7 @@
       tags:
         - infra
 
+
 - name: 06 Deploy applications
   hosts: k3s_cluster[0]
   become: true
@@ -73,11 +74,3 @@
     - role: 06_apps
       tags:
         - apps
-        - apps:helm
-        - apps:repos
-        - apps:traefik
-        - apps:authentik
-        - apps:argocd
-        - apps:longhorn
-        - apps:monitoring
-        - apps:rancher

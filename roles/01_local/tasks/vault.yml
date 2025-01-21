@@ -39,7 +39,6 @@
       vault_k3s_token: "{{ k3s_token.stdout }}"
       vault_authentik_secret_key: "{{ authentik_secret.stdout }}"
       vault_authentik_postgresql_password: "{{ authentik_pg_pw.stdout }}"
-      vault_tailscale_key: ""
   when: not vault_file_check.stat.exists
 
 - name: Create temporary unencrypted vault file

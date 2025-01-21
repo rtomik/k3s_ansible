@@ -6,6 +6,7 @@
     repo_url: "{{ item.url }}"
   loop:
     - { name: jellyfin, url: "https://jellyfin.github.io/jellyfin-helm" }
+    - { name: jameswynn, url: "https://jameswynn.github.io/helm-charts" }
   tags:
     - apps
     - apps:repos

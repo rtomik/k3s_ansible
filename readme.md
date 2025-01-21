@@ -11,8 +11,11 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 - Longhorn (Distributed Block Storage)
 - ArgoCD (GitOps Continuous Delivery)
 - Rancher (Kubernetes Management Platform)
-- Authentik (Identity Provider)
-- Prometheus Stack (Monitoring, including Grafana)
+- Authentik (SSO)
+- Prometheus Stack (Monitoring)
+- GitLab
+- Metalb (K3s LoadBalancer)
+
 
 ## Prerequisites
 
@@ -28,42 +31,26 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 
 1. Clone the repo
    ```
-   git clone https://github.com/rtomik/k3s_ansible.git && \
-   cd k3s_ansible && \ 
+   git clone https://github.com/rtomik/k3s_ansible.git && cd k3s_ansible\
    mv inventory.yml_ex inventory.yml && \
    mv group_vars/all/main.yml_ex group_vars/all/main.yml
    ```
 
-2. Update variables
+2. Update variables and define which apps you want to deploy
    Modify `inventory.yml` with your node IP addresses.
    Modify `group_vars/all.yml` to set your desired versions, configurations, and variables
 
-3. Create vault
-   ```
-   ansible-playbook playbooks/main.yml --tags "vault"
-   ```
-
-4. Add tailscale key to vault 
-   ```
-   ansible-vault edit group_var/all/vault.yml
-   ```
-
-5. Install required Ansible collections:
-   ```
-   ansible-galaxy collection install -r requirements.yml
-   ```
-
-6. Run the main playbook
+3. Run the main playbook
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-7. To deploy specific components, use tags:
+4. To deploy specific components, use tags
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-8. To destroy the cluster and remove everything:
+5. To destroy the cluster and remove everything:
    ```
    ansible-playbook playbooks/destroy.yml
    ```

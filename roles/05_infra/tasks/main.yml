@@ -20,6 +20,7 @@
     - { name: rancher-stable, url: "https://releases.rancher.com/server-charts/stable" }
     - { name: jetstack, url: "https://charts.jetstack.io" }
     - { name: metallb, url: "https://metallb.github.io/metallb" } 
+    - { name: gitlab, url: "https://charts.gitlab.io/" } 
   tags:
     - infra
     - infra:repos
@@ -28,6 +29,11 @@
   tags:
     - infra
     - infra:metalb
+
+- import_tasks: certs.yml
+  tags:
+    - infra
+    - infra:certs
 
 - import_tasks: rancher.yml
   tags:
@@ -44,7 +50,7 @@
     - infra
     - infra:longhorn
 
-- import_tasks: monitoring.yml
+- import_tasks: prometheus.yml
   tags:
     - infra
     - infra:monitoring
@@ -53,4 +59,9 @@
   tags:
     - infra
     - infra:authentik
+
+- import_tasks: gitlab.yml
+  tags:
+    - infra
+    - infra:gitlab
 

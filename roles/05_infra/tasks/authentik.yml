@@ -7,6 +7,7 @@
     namespace: authentik
   register: authentik_check
   ignore_errors: true
+  when: deploy_authentik | bool
 
 - name: Fetch Authentik Helm chart information
   kubernetes.core.helm_info:
@@ -14,6 +15,7 @@
     release_namespace: authentik
   register: authentik_helm_info
   ignore_errors: true
+  when: deploy_authentik | bool
 
 - name: Deploy or upgrade Authentik
   kubernetes.core.helm:
@@ -22,29 +24,70 @@
     chart_version: "{{ authentik_version }}"
     release_namespace: authentik
     create_namespace: yes
-    values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"
+    values:
+      authentik:
+        secret_key: "{{ vault_authentik_secret_key }}"
+        postgresql:
+          password: "{{ vault_authentik_postgresql_password }}"
+        ingress:
+          enabled: false
+        server:
+          ingress:
+            enabled: false
+          ports:
+            http:
+              port: 80
+              targetPort: 9000
+            https:
+              port: 443
+              targetPort: 9443
+      postgresql:
+        enabled: true
+        auth:
+          password: "{{ vault_authentik_postgresql_password }}"
+      redis:
+        enabled: true
     wait: yes
-    wait_timeout: 1m 
-  when: >
-    authentik_check.resources | length == 0 or
-    (authentik_helm_info.status is defined and
-     authentik_helm_info.status.chart_version is defined and
-     authentik_helm_info.status.chart_version is version(authentik_version, '<'))
+    wait_timeout: 10m
   register: authentik_deploy
-  until: authentik_deploy is succeeded
-  retries: 3
-  delay: 10
+  when: deploy_authentik | bool
 
-- name: Wait for Authentik to be ready
+- name: Create Authentik Ingress
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: authentik
+        namespace: authentik
+        annotations:
+          kubernetes.io/ingress.class: traefik
+          traefik.ingress.kubernetes.io/router.tls.certresolver: le
+          traefik.ingress.kubernetes.io/router.entrypoints: websecure
+          traefik.ingress.kubernetes.io/router.middlewares: authentik-authentik-outpost@kubernetescrd
+      spec:
+        rules:
+          - host: "auth.{{ domain }}"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: authentik-server
+                      port:
+                        number: 443
+        tls:
+          - hosts:
+              - "auth.{{ domain }}"
+            secretName: authentik-tls
+  when: authentik_deploy is changed and deploy_authentik | bool
+
+- name: Verify Authentik Ingress
   kubernetes.core.k8s_info:
-    kind: Pod
+    kind: Ingress
+    name: authentik
     namespace: authentik
-    label_selectors:
-      - app.kubernetes.io/name=authentik
-  register: authentik_pods
-  until: >
-    authentik_pods.resources | length > 0 and
-    (authentik_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
-  retries: 20
-  delay: 30
-  when: authentik_deploy is changed
+  register: authentik_ingress
+  failed_when: authentik_ingress.resources | length == 0
+  when: deploy_authentik | bool

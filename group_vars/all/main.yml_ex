@@ -1,34 +1,50 @@
 ---
+# ----- Required variables --------- #
+
+# Time zone configuration
+timezone: "UTC"  # Change this to your desired time zone, e.g., "America/New_York"
+
 # Domain configuration
-domain: domain.com
-email: email
+domain: <domain>
+email: <email>
 
-# K3S versions
+# Tailscale
+tailscale_key: "<tailscale_key>"
+tailscale_ip_range: <ip range in tailscale for nodes>  #Tailcale ip range for metalb ex.100.64.0.1-100.64.0.20
+
+# ----- Optional variables --------- #
+
+# K3s config
 k3s_version: v1.31.2+k3s1
-k3s_server_args: "server --tls-san {{ hostvars[groups['k3s_cluster'][0]]['ansible_host'] }}"
 k3s_token: "{{ vault_k3s_token }}"
+k3s_server_args: >-
+  server
+  --bind-address {{ tailscale_ip.stdout }}
+  --advertise-address {{ tailscale_ip.stdout }}
+  --node-ip {{ tailscale_ip.stdout }}
+  --disable=servicelb
+  --flannel-iface tailscale0
 
-# Proxy version
-traefik_version: 3.1.5
+# Set to false if you don't want to deploy these apps
+deploy_rancher: true  
+deploy_gitlab: true
+deploy_authentik: true
 
-# Apps versions
+# Infrastructure app versions
 argocd_version: 7.7.8
 longhorn_version: 1.7.2
 prometheus_stack_version: 66.3.1
 authentik_version: 2024.6.1
 rancher_version: 2.10.1
+metallb_version: 0.14.9
+gitlab_version: 8.8.0
 
-# Apps config
-grafana_oauth_client_id: "your_client_id_here"
-grafana_oauth_client_secret: "your_client_secret_here"
-argocd_admin_password: "{{ vault_argocd_admin_password }}"
+# Optional apps
+deploy_jellyfin: true  
+deploy_homepage: true
 
-# Set to false if you don't want to deploy Rancher
-deploy_rancher: true  
-
-# Authentik configuration
-authentik_secret_key: "{{ vault_authentik_secret_key }}"
-authentik_postgresql_password: "{{ vault_authentik_postgresql_password }}"
+jellyfin_version: 2.1.0
+homepage_version: 2.0.1
 
 # Server configuration
 perform_full_upgrade: true
@@ -38,7 +54,7 @@ disable_ipv6: false
 user: ansible
 ansible_user: "{{ user }}"
 ansible_initial_user: root
-      
-# Time zone configuration
-timezone: "Europe/Prague"  # Change this to your desired time zone, e.g., "America/New_York"
 
+# Vault
+vault_file: "../group_vars/all/vault.yml"
+vault_password_file: "../.vault"

@@ -1,0 +1,31 @@
+---
+- name: Check if cert-manager is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: cert-manager
+    namespace: cert-manager
+  register: cert_manager_check
+  ignore_errors: true
+
+- name: Deploy cert-manager (required for Rancher)
+  kubernetes.core.helm:
+    name: cert-manager
+    chart_ref: jetstack/cert-manager
+    chart_version: v1.8.0
+    release_namespace: cert-manager
+    create_namespace: yes
+    values:
+      installCRDs: true
+  when: cert_manager_check.resources | length == 0
+
+- name: Wait for cert-manager to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: cert-manager
+    label_selectors:
+      - app.kubernetes.io/instance=cert-manager
+  register: cert_manager_pods
+  until: cert_manager_pods.resources | length > 0 and cert_manager_pods.resources | map(attribute='status.phase') | list | unique == ['Running']
+  retries: 10
+  delay: 30
