@@ -36,21 +36,22 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    mv group_vars/all/main.yml_ex group_vars/all/main.yml
    ```
 
-2. Update variables and define which apps you want to deploy
-   Modify `inventory.yml` with your node IP addresses.
-   Modify `group_vars/all.yml` to set your desired versions, configurations, and variables
+2. Modify `inventory.yml` with your node IP addresses.
+   
+3. Modify `group_vars/all/main.yml` to set your desired versions, configurations, and variables 
+   Make sure to define variables under `Required variables` section
 
-3. Run the main playbook
+4. Run the main playbook
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-4. To deploy specific components, use tags
+5. To deploy specific components, use tags
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-5. To destroy the cluster and remove everything:
+6. To destroy the cluster and remove everything:
    ```
    ansible-playbook playbooks/destroy.yml
    ```
