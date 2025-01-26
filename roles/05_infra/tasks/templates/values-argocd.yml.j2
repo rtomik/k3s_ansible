@@ -5,10 +5,6 @@
 global:
   domain: argocd.{{ domain }}
 
-configs:
-  params:
-    server.insecure: true
-
 server:
   ingress:
     enabled: true
@@ -21,3 +17,14 @@ server:
       - hosts:
         - argocd.{{ domain }}
         secretName: "{{ tls_secret_name }}"
+
+configs:
+  params:
+    server.insecure: true
+  cm:
+    oidc.config: |
+      name: Authentik
+      issuer: https://authentik.{{ domain }}/application/o/argocd/
+      clientID: $oidc.authentik.clientID
+      clientSecret: $oidc.authentik.clientSecret
+      requestedScopes: ["openid", "profile", "email"]

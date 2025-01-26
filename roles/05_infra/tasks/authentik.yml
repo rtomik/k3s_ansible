@@ -44,9 +44,50 @@
         authentik_api_token: "{{ vault_authentik_api_token | b64encode }}"
   when: deploy_authentik | bool
 
+- name: Get flow identifiers via Authentik API
+  uri:
+    url: "https://authentik.{{ domain }}/api/v3/flows/instances/"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ vault_authentik_api_token }}"
+      Content-Type: "application/json"
+    return_content: yes
+  register: flow_instances_response
+  changed_when: false
+  failed_when: flow_instances_response.status not in [200]
+  when: deploy_authentik | bool
+
+- name: Extract relevant flow IDs
+  set_fact:
+    default_authorization_flow_id: >-
+      {{
+        (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-authorization-implicit-consent') | list | first).pk
+      }}
+    default_invalidation_flow_id: >-
+      {{
+        (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-invalidation-flow') | list | first).pk
+      }}
+  when:
+    - flow_instances_response.json.results is defined
+    - flow_instances_response.json.results | length > 0
+    - deploy_authentik | bool
+
 - name: Authentik ArgoCD
   block:
-    - name: Create an OAuth2 provider for ArgoCD in Authentik
+    - name: Check if OAuth2 Provider for ArgoCD exists
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?slug=Provider%20for%20ArgoCD"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: check_provider_response
+      changed_when: false
+      failed_when: check_provider_response.status not in [200, 404]
+      when: deploy_authentik | bool
+
+    - name: Create OAuth2 Provider for ArgoCD
       uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
         method: POST
@@ -55,16 +96,46 @@
           Content-Type: "application/json"
         body: |
           {
-            "name": "ArgoCD",
-            "slug": "ArgoCD",
+            "name": "Provider for ArgoCD",
+            "slug": "Provider for ArgoCD",
             "client_type": "confidential",
-            "authorization_flow": "implicit",
-            "redirect_uris": ["https://argocd.{{ domain }}/auth/callback"],
+            "authorization_flow": "{{ default_authorization_flow_id }}",
+            "invalidation_flow": "{{ default_invalidation_flow_id }}",
+            "redirect_uris": [
+              {
+                "matching_mode": "strict",
+                "url": "https://argocd.{{ domain }}"
+              }
+            ],
             "client_id": "argocd-client-id",
             "client_secret": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
           }
         body_format: json
-      register: create_app_response
+      register: create_provider_response
+      changed_when: create_provider_response.status == 201
+      failed_when: create_provider_response.status not in [200, 201]
+      when:
+        - deploy_authentik | bool
+        - check_provider_response.status == 404
+
+    - name: Save client credentials
+      set_fact:
+        argocd_client_id: >-
+          {{
+            (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
+              else create_provider_response.json.client_id)
+          }}
+        argocd_client_secret: >-
+          {{
+            (check_provider_response.json.results[0].client_secret if check_provider_response.json.results | length > 0
+              else create_provider_response.json.client_secret)
+          }}
+        argocd_provider_id: >-
+          {{
+            (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
+              else create_provider_response.json.pk)
+          }}
+      when: deploy_authentik | bool
 
     - name: Create an ArgoCD application in Authentik
       uri:
@@ -77,13 +148,12 @@
           {
             "name": "ArgoCD",
             "slug": "ArgoCD",
-            "provider": "saml",
-            "sso_url": "https://argocd.{{ domain }}",
-            "open_in_new_tab": true,
+            "provider": "{{ argocd_provider_id }}",
+            "meta_launch_url": "https://argocd.{{ domain }}",
+            "open_in_new_tab": true
           }
         body_format: json
       register: create_app_response
-
-    - name: Debug application creation response
-      debug:
-        var: create_app_response.json
+      changed_when: create_app_response.status == 201
+      failed_when: create_app_response.status not in [200, 201]
+      when: deploy_authentik | bool

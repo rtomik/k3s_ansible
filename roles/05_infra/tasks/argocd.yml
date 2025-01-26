@@ -7,6 +7,7 @@
     namespace: argocd
   register: argocd_check
   ignore_errors: true
+  when: deploy_argocd | bool
 
 - name: Fetch ArgoCD Helm chart information
   kubernetes.core.helm_info:
@@ -14,6 +15,7 @@
     release_namespace: argocd
   register: argocd_helm_info
   ignore_errors: true
+  when: deploy_argocd | bool
 
 - name: Deploy or upgrade ArgoCD
   kubernetes.core.helm:
@@ -25,12 +27,8 @@
     values: "{{ lookup('template', 'values-argocd.yml.j2') | from_yaml }}"
     wait: yes
     wait_timeout: 10m
-  when: >
-    argocd_check.resources | length == 0 or
-    (argocd_helm_info.status is defined and
-     argocd_helm_info.status.chart_version is defined and
-     argocd_helm_info.status.chart_version is version(argocd_version, '<'))
   register: argocd_deploy
+  when: deploy_argocd | bool
   until: argocd_deploy is succeeded
   retries: 3
   delay: 10
@@ -47,7 +45,7 @@
     (argocd_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
   retries: 20
   delay: 30
-  when: argocd_deploy is changed
+  when: deploy_argocd | bool and argocd_deploy is changed
 
 - name: Retrieve ArgoCD admin password
   kubernetes.core.k8s_info:
@@ -55,9 +53,9 @@
     name: argocd-initial-admin-secret
     namespace: argocd
   register: argocd_admin_secret
-  when: argocd_deploy is changed
+  when: deploy_argocd | bool and argocd_deploy is changed
 
 - name: Display ArgoCD admin password
   debug:
     msg: "ArgoCD admin password: {{ argocd_admin_secret.resources[0].data.password | b64decode }}"
-  when: argocd_deploy is changed and argocd_admin_secret.resources | length > 0
+  when: deploy_argocd | bool and argocd_deploy is changed and argocd_admin_secret.resources | length > 0
