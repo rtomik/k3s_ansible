@@ -18,5 +18,11 @@
     - apps:jellyfin
 
 
+- import_tasks: homepage.yml
+  tags:
+    - apps
+    - apps:homepage
+
+
 
 

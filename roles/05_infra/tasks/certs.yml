@@ -8,7 +8,7 @@
   register: cert_manager_check
   ignore_errors: true
 
-- name: Deploy cert-manager (required for Rancher)
+- name: Deploy cert-manager
   kubernetes.core.helm:
     name: cert-manager
     chart_ref: jetstack/cert-manager
@@ -17,6 +17,7 @@
     create_namespace: yes
     values:
       installCRDs: true
+      
   when: cert_manager_check.resources | length == 0
 
 - name: Wait for cert-manager to be ready

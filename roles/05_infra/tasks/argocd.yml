@@ -22,28 +22,7 @@
     chart_version: "{{ argocd_version }}"
     release_namespace: argocd
     create_namespace: yes
-    values:
-      server:
-        ingress:
-          enabled: true
-          annotations:
-            kubernetes.io/ingress.class: traefik
-            traefik.ingress.kubernetes.io/router.tls.certresolver: le
-          hosts:
-            - argocd.{{ domain }}
-          tls:
-            - secretName: argocd-tls
-              hosts:
-                - argocd.{{ domain }}
-      configs:
-        cm:
-          url: https://argocd.{{ domain }}
-          oidc.config: |
-            name: Authentik
-            issuer: https://auth.{{ domain }}/application/o/argocd/
-            clientID: $oidc.authentik.clientID
-            clientSecret: $oidc.authentik.clientSecret
-            requestedScopes: ["openid", "profile", "email"]
+    values: "{{ lookup('template', 'values-argocd.yml.j2') | from_yaml }}"
     wait: yes
     wait_timeout: 10m
   when: >

@@ -24,26 +24,7 @@
     chart_version: "{{ gitlab_version }}"
     release_namespace: gitlab
     create_namespace: yes
-    values:
-      global:
-        hosts:
-          domain: "{{ domain }}"
-        ingress:
-          configureCertmanager: false
-          class: "traefik"
-          annotations:
-            traefik.ingress.kubernetes.io/router.tls.certresolver: le
-        edition: ce
-      certmanager:
-        install: false
-      nginx-ingress:
-        enabled: false
-      gitlab-runner:
-        install: false
-      prometheus:
-        install: false
-    wait: yes
-    wait_timeout: 15m
+    values: "{{ lookup('template', 'values-gitlab.yml.j2') | from_yaml }}"
   when: >
     deploy_gitlab | bool and
     (gitlab_check.resources | length == 0 or

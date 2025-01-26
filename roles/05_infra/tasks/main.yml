@@ -25,10 +25,10 @@
     - infra
     - infra:repos
 
-- import_tasks: metalb.yml
+- import_tasks: metallb.yml
   tags:
     - infra
-    - infra:metalb
+    - infra:metallb
 
 - import_tasks: certs.yml
   tags:

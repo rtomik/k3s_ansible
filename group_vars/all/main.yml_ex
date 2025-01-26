@@ -12,6 +12,12 @@ email: <email>
 tailscale_key: "<tailscale_key>"
 tailscale_ip_range: <ip range in tailscale for nodes>  #Tailcale ip range for metalb ex.100.64.0.1-100.64.0.20
 
+# Cloudflare
+# If you want to use TLS certificates on apps enable cloudflare and define API token
+# Cloudflare api token settings Permissions: Zone - DNS - Edit Zone - Zone - Read Zone Resources: Include - All Zones
+enable_cloudflare: true
+cloudflare_api_token:
+
 # ----- Optional variables --------- #
 
 # K3s config

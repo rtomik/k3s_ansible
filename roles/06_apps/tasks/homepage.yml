@@ -3,75 +3,29 @@
   kubernetes.core.k8s_info:
     api_version: apps/v1
     kind: Deployment
-    name: Homepage
-    namespace: Homepage
+    name: homepage
+    namespace: homepage
   register: Homepage_check
   ignore_errors: true
-  when: deploy_Homepage | bool
+  when: deploy_homepage | bool
 
 - name: Fetch Homepage Helm chart information
   kubernetes.core.helm_info:
-    name: Homepage
-    release_namespace: Homepage
+    name: homepage
+    release_namespace: homepage
   register: Homepage_helm_info
   ignore_errors: true
-  when: deploy_Homepage | bool
+  when: deploy_homepage | bool
 
 - name: Deploy or upgrade Homepage
   kubernetes.core.helm:
-    name: Homepage
-    chart_ref: Homepage/Homepage
+    name: homepage 
+    chart_ref: jameswynn/homepage
     chart_version: "{{ homepage_version }}"
-    release_namespace: "Homepage"
+    release_namespace: homepage
     create_namespace: yes
-    values:
-      ingress:
-        enabled: true
-        annotations:
-          kubernetes.io/ingress.class: traefik
-          traefik.ingress.kubernetes.io/router.tls.certresolver: le
-        hosts:
-          - host: Homepage.{{ domain }}
-            paths:
-              - path: /
-                pathType: Prefix
-        tls:
-          - secretName: Homepage-tls
-            hosts:
-              - Homepage.{{ domain }}
-      persistence:
-        config:
-          enabled: true
-          size: 1Gi
-        media:
-          enabled: true
-          size: 100Gi
-          storageClass: longhorn
+    values: "{{ lookup('template', 'values-homepage.yml.j2') | from_yaml }}"
     wait: yes
-    wait_timeout: 1m
-  when: >
-    deploy_Homepage | bool and
-    (Homepage_check.resources | length == 0 or
-    (Homepage_helm_info.status is defined and
-      Homepage_helm_info.status.chart_version is defined and
-      Homepage_helm_info.status.chart_version is version(Homepage_version, '<')))
+    wait_timeout: 5m
   register: Homepage_deploy
-
-- name: Wait for Homepage to be ready
-  kubernetes.core.k8s_info:
-    kind: Pod
-    namespace: Homepage
-    label_selectors:
-      - app.kubernetes.io/name=Homepage
-  register: Homepage_pods
-  until: >
-    Homepage_pods.resources | length > 0 and
-    (Homepage_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
-  retries: 20
-  delay: 30
-  when: deploy_Homepage | bool and Homepage_deploy is changed
-
-- name: Display Homepage URL
-  debug:
-    msg: "Homepage is now available at https://Homepage.{{ domain }}"
-  when: deploy_Homepage | bool and Homepage_deploy is changed
+  when: deploy_homepage | bool

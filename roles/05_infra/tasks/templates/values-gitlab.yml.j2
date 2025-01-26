@@ -1,0 +1,28 @@
+---
+# default values
+# https://gitlab.com/gitlab-org/charts/gitlab/-/blob/master/values.yaml
+
+global:
+  hosts:
+    domain: "{{ domain }}"
+
+  ingress:
+    enabled: true
+    configureCertmanager: false
+    class: "traefik"
+    annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        kubernetes.io/ingress.class: traefik
+        traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+    tls:
+        enabled: true
+        secretName: "{{ tls_secret_name }}"
+  edition: ce
+certmanager:
+  install: false
+nginx-ingress:
+  enabled: false
+gitlab-runner:
+  install: false
+prometheus:
+  install: false

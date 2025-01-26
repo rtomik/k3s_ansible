@@ -24,70 +24,66 @@
     chart_version: "{{ authentik_version }}"
     release_namespace: authentik
     create_namespace: yes
-    values:
-      authentik:
-        secret_key: "{{ vault_authentik_secret_key }}"
-        postgresql:
-          password: "{{ vault_authentik_postgresql_password }}"
-        ingress:
-          enabled: false
-        server:
-          ingress:
-            enabled: false
-          ports:
-            http:
-              port: 80
-              targetPort: 9000
-            https:
-              port: 443
-              targetPort: 9443
-      postgresql:
-        enabled: true
-        auth:
-          password: "{{ vault_authentik_postgresql_password }}"
-      redis:
-        enabled: true
+    values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"
     wait: yes
-    wait_timeout: 10m
+    wait_timeout: 5m
   register: authentik_deploy
   when: deploy_authentik | bool
 
-- name: Create Authentik Ingress
+- name: Add user credentials to secret
   kubernetes.core.k8s:
     definition:
-      apiVersion: networking.k8s.io/v1
-      kind: Ingress
+      apiVersion: v1
+      kind: Secret
       metadata:
-        name: authentik
+        name: authentik-login
         namespace: authentik
-        annotations:
-          kubernetes.io/ingress.class: traefik
-          traefik.ingress.kubernetes.io/router.tls.certresolver: le
-          traefik.ingress.kubernetes.io/router.entrypoints: websecure
-          traefik.ingress.kubernetes.io/router.middlewares: authentik-authentik-outpost@kubernetescrd
-      spec:
-        rules:
-          - host: "auth.{{ domain }}"
-            http:
-              paths:
-                - path: /
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: authentik-server
-                      port:
-                        number: 443
-        tls:
-          - hosts:
-              - "auth.{{ domain }}"
-            secretName: authentik-tls
-  when: authentik_deploy is changed and deploy_authentik | bool
-
-- name: Verify Authentik Ingress
-  kubernetes.core.k8s_info:
-    kind: Ingress
-    name: authentik
-    namespace: authentik
-  register: authentik_ingress
-  failed_when: authentik_ingress.resources | length == 0
+      data:
+        authentik_admin_user: "{{ email | b64encode }}"
+        authentik_admin_pw: "{{ vault_authentik_user_password | b64encode }}"
+        authentik_api_token: "{{ vault_authentik_api_token | b64encode }}"
   when: deploy_authentik | bool
+
+- name: Authentik ArgoCD
+  block:
+    - name: Create an OAuth2 provider for ArgoCD in Authentik
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        body: |
+          {
+            "name": "ArgoCD",
+            "slug": "ArgoCD",
+            "client_type": "confidential",
+            "authorization_flow": "implicit",
+            "redirect_uris": ["https://argocd.{{ domain }}/auth/callback"],
+            "client_id": "argocd-client-id",
+            "client_secret": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+          }
+        body_format: json
+      register: create_app_response
+
+    - name: Create an ArgoCD application in Authentik
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        body: |
+          {
+            "name": "ArgoCD",
+            "slug": "ArgoCD",
+            "provider": "saml",
+            "sso_url": "https://argocd.{{ domain }}",
+            "open_in_new_tab": true,
+          }
+        body_format: json
+      register: create_app_response
+
+    - name: Debug application creation response
+      debug:
+        var: create_app_response.json

@@ -1,0 +1,137 @@
+config:
+  bookmarks:
+    - Developer:
+        - Github:
+            - abbr: GH
+              href: https://github.com/
+  services:
+    - Infrastructure:
+      - Portainer:
+          href: https://portainer.richardtomik.com
+          description: Docker Management
+          icon: portainer.svg
+          widget:
+              type: portainer
+              url: https://portainer.richardtomik.com
+              env: 2
+      - Dockge:
+          href: https://dockge.richardtomik.com/
+          description: Docker compose Management
+          icon: docker.svg
+    - Media:
+      - Jellyfin:
+          href: https://jellyfin.richardtomik.com
+          description: Media System
+          icon: jellyfin.svg
+
+      - Audiobookshelf:
+          href: https://audiobookshelf.richardtomik.com
+          description: Self-hosted audiobook and podcast server
+          icon: bookstack.svg
+          widget:
+              type: audiobookshelf
+              url: https://audiobookshelf.richardtomik.com
+    - Apps:
+      - Hoader:
+          href: https://hoarder.richardtomik.com/
+          description: Link Bookmark and notes
+          icon: hoarder.svg
+      - Mealie:
+          href: https://mealie.richardtomik.com/g/home
+          description: Recepies
+          icon: mealie.svg
+      - Immich:
+          href: https://immich.richardtomik.com
+          description: Photo and video management solution
+          icon: immich.svg
+      - Joplin Server:
+          href: https://joplin.richardtomik.com/
+          description: Joplin is an open source note-taking app
+          icon: joplin.svg
+      - Open Web-UI:
+          href: https://chatgpt.richardtomik.com/
+          description: Chat GPT
+          icon: chatgpt.svg
+        
+  widgets:
+    # show the kubernetes widget, with the cluster summary and individual nodes
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: "cluster"
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+      text_size: xl
+      format:
+          timeStyle: short
+          hourCycle: h23
+
+  kubernetes:
+    mode: cluster
+  settings:
+    title: Homepage
+
+    background:
+      image: https://cdnb.artstation.com/p/assets/images/images/006/897/659/large/mikael-gustafsson-wallpaper-mikael-gustafsson.jpg
+      blur: sm # sm, md, xl... see https://tailwindcss.com/docs/backdrop-blur
+      saturate: 100 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
+      brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
+      opacity: 100 # 0-100
+
+    theme: dark
+    color: slate
+    useEqualHeights: true
+
+    layout:
+      Infrastructure:
+        icon: mdi-auto-fix-#FFFFFF
+      Monitoring:
+        icon: mdi-list-status-#FFFFFF
+      Media:
+        icon: mdi-auto-fix-#FFFFFF
+      Media Management:
+        icon: mdi-auto-fix-#FFFFFF
+        header: true
+        style: row
+        columns: 4
+      Apps:
+        icon: mdi-cog-play-#FFFFFF
+        header: true
+        style: row
+        columns: 5
+
+
+# The service account is necessary to allow discovery of other services
+serviceAccount:
+  create: true
+  name: homepage
+
+# This enables the service account to access the necessary resources
+enableRbac: true
+
+ingress:
+  main:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+    hosts:
+      - host: homepage.{{ domain }}
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: "{{ tls_secret_name }}"
+        hosts:
+          - homepage.{{ domain }}
