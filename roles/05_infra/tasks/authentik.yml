@@ -44,39 +44,93 @@
         authentik_api_token: "{{ vault_authentik_api_token | b64encode }}"
   when: deploy_authentik | bool
 
-- name: Get flow identifiers via Authentik API
-  uri:
-    url: "https://authentik.{{ domain }}/api/v3/flows/instances/"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ vault_authentik_api_token }}"
-      Content-Type: "application/json"
-    return_content: yes
-  register: flow_instances_response
-  changed_when: false
-  failed_when: flow_instances_response.status not in [200]
-  when: deploy_authentik | bool
+- name: Get required variables from authentik to create application
+  block:
+    - name: Get flow identifiers via Authentik API
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/flows/instances/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: flow_instances_response
+      changed_when: false
+      failed_when: flow_instances_response.status not in [200]
+      when: deploy_authentik | bool
 
-- name: Extract relevant flow IDs
-  set_fact:
-    default_authorization_flow_id: >-
-      {{
-        (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-authorization-implicit-consent') | list | first).pk
-      }}
-    default_invalidation_flow_id: >-
-      {{
-        (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-invalidation-flow') | list | first).pk
-      }}
-  when:
-    - flow_instances_response.json.results is defined
-    - flow_instances_response.json.results | length > 0
-    - deploy_authentik | bool
+    - name: Extract relevant flow IDs
+      set_fact:
+        default_authorization_flow_id: >-
+          {{
+            (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-authorization-implicit-consent') | list | first).pk
+          }}
+        default_invalidation_flow_id: >-
+          {{
+            (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-invalidation-flow') | list | first).pk
+          }}
+      when:
+        - flow_instances_response.json.results is defined
+        - flow_instances_response.json.results | length > 0
+        - deploy_authentik | bool
+
+    - name: Get OAuth2 scope mappings
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/propertymappings/provider/scope/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+          Accept: "application/json"
+        return_content: yes
+        validate_certs: yes
+        status_code: [200]
+      register: scope_mappings_response
+      until: scope_mappings_response.status == 200
+      retries: 6
+      delay: 10
+      changed_when: false
+      failed_when:
+        - scope_mappings_response.status != 200
+        - scope_mappings_response.json.results | length == 0
+      when: deploy_authentik | bool
+
+    - name: Define required OAuth2 scopes
+      set_fact:
+        required_scopes:
+          email: "goauthentik.io/providers/oauth2/scope-email"
+          openid: "goauthentik.io/providers/oauth2/scope-openid"
+          profile: "goauthentik.io/providers/oauth2/scope-profile"
+      when: deploy_authentik | bool
+
+    - name: Verify required OAuth2 scope mappings exist
+      assert:
+        that:
+          - required_scopes.values() | difference(scope_mappings_response.json.results | map(attribute='managed') | list) | length == 0
+        fail_msg: "One or more required OAuth2 scope mappings are missing in Authentik"
+        success_msg: "All required OAuth2 scope mappings are present in Authentik"
+      when: deploy_authentik | bool
+
+    - name: Extract UUIDs for required OAuth2 scopes
+      set_fact:
+        scope_uuids: "{{ scope_uuids | default({}) | combine({ item.key: (scope_mappings_response.json.results | selectattr('managed', 'equalto', item.value) | map(attribute='pk') | first ) }) }}"
+      loop: "{{ required_scopes | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      when: deploy_authentik | bool
+
+    - name: Set individual scope UUID facts
+      set_fact:
+        email_scope_uuid: "{{ scope_uuids.email }}"
+        openid_scope_uuid: "{{ scope_uuids.openid }}"
+        profile_scope_uuid: "{{ scope_uuids.profile }}"
+      when: deploy_authentik | bool
 
 - name: Authentik ArgoCD
   block:
     - name: Check if OAuth2 Provider for ArgoCD exists
       uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?slug=Provider%20for%20ArgoCD"
+        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20ArgoCD"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
@@ -85,6 +139,11 @@
       register: check_provider_response
       changed_when: false
       failed_when: check_provider_response.status not in [200, 404]
+      when: deploy_authentik | bool
+
+    - name: Set provider exists fact
+      set_fact:
+        provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
       when: deploy_authentik | bool
 
     - name: Create OAuth2 Provider for ArgoCD
@@ -97,18 +156,30 @@
         body: |
           {
             "name": "Provider for ArgoCD",
-            "slug": "Provider for ArgoCD",
+            "slug": "provider-for-argocd",
             "client_type": "confidential",
             "authorization_flow": "{{ default_authorization_flow_id }}",
             "invalidation_flow": "{{ default_invalidation_flow_id }}",
+            "property_mappings": [
+              "{{ email_scope_uuid }}",
+              "{{ openid_scope_uuid }}",
+              "{{ profile_scope_uuid }}"
+            ],
             "redirect_uris": [
               {
-                "matching_mode": "strict",
-                "url": "https://argocd.{{ domain }}"
+                "matching_mode": "regex",
+                "url": "https://argocd.{{ domain }}/api/dex/callback"
+              },
+              {
+                "matching_mode": "regex",
+                "url": "http://localhost:8085/auth/callback"
               }
             ],
-            "client_id": "argocd-client-id",
-            "client_secret": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+            "access_code_validity": "minutes=1",
+            "refresh_token_validity": "days=30",
+            "id_token_validity": "minutes=60",
+            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
           }
         body_format: json
       register: create_provider_response
@@ -116,7 +187,7 @@
       failed_when: create_provider_response.status not in [200, 201]
       when:
         - deploy_authentik | bool
-        - check_provider_response.status == 404
+        - not provider_exists
 
     - name: Save client credentials
       set_fact:
@@ -137,6 +208,24 @@
           }}
       when: deploy_authentik | bool
 
+    - name: Check if ArgoCD application exists in Authentik
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=argocd"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: check_app_response
+      changed_when: false
+      failed_when: check_app_response.status not in [200, 404]
+      when: deploy_authentik | bool
+
+    - name: Set application exists fact
+      set_fact:
+        app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
+      when: deploy_authentik | bool
+
     - name: Create an ArgoCD application in Authentik
       uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/"
@@ -147,13 +236,16 @@
         body: |
           {
             "name": "ArgoCD",
-            "slug": "ArgoCD",
+            "slug": "argocd",
             "provider": "{{ argocd_provider_id }}",
-            "meta_launch_url": "https://argocd.{{ domain }}",
+            "meta_launch_url": "https://argocd.{{ domain }}/auth/login",
             "open_in_new_tab": true
           }
         body_format: json
       register: create_app_response
       changed_when: create_app_response.status == 201
       failed_when: create_app_response.status not in [200, 201]
-      when: deploy_authentik | bool
+      when:
+        - deploy_authentik | bool
+        - not app_exists
+
