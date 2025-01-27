@@ -19,13 +19,11 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 
 ## Prerequisites
 
-- Linux system/vm/or WSL on Windows where you can clone the repo.
-- Ansible 2.9 or higher
-- Nodes with installed Ubuntu 24.04
+- Linux system/vm/or WSL on Windows where you can clone the repo. With packages Ansible 2.9 or higher and kubectl
+- Linux bare metal servers or VMs with installed Ubuntu Server 24.04 (Recommended 3)
 - SSH access to all nodes (ssh keys to root)
-- `kubectl` installed on your local machine
 - Domain (recommended: https://porkbun.com/ or https://www.duckdns.org/)
-- Login to Tailscale https://login.tailscale.com/admin/settings/keys and create new auth keys
+- Tailscale account https://login.tailscale.com/admin/settings/keys and create new auth keys
 
 
 ## Usage
