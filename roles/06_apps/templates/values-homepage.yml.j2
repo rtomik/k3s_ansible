@@ -6,50 +6,66 @@ config:
               href: https://github.com/
   services:
     - Infrastructure:
-      - Portainer:
-          href: https://portainer.richardtomik.com
-          description: Docker Management
-          icon: portainer.svg
+      - Rancher:
+          href: https://rancher.{{ domain }}/
+          description: 
+          icon:           
+      - ArgoCD:
+          href: https://argocd.{{ domain }}
+          description: GitOps CD tool for Kubernetes
+          icon: 
           widget:
-              type: portainer
-              url: https://portainer.richardtomik.com
+              type: argocd
+              url: https://argocd.{{ domain }}
               env: 2
-      - Dockge:
-          href: https://dockge.richardtomik.com/
-          description: Docker compose Management
-          icon: docker.svg
+      - Authentik:
+          href: https://authentik.{{ domain }}/
+          description: SSO
+          icon: 
+      - GitLab:
+          href: https://gitlab.{{ domain }}/
+          description: 
+          icon: 
+      - Longhorn:
+          href: https://longhorn.{{ domain }}/
+          description: 
+          icon: 
+      - Prometheus:
+          href: https://prometheus.{{ domain }}/
+          description: 
+          icon:          
     - Media:
       - Jellyfin:
-          href: https://jellyfin.richardtomik.com
+          href: https://jellyfin.{{ domain }}
           description: Media System
           icon: jellyfin.svg
 
       - Audiobookshelf:
-          href: https://audiobookshelf.richardtomik.com
+          href: https://audiobookshelf.{{ domain }}
           description: Self-hosted audiobook and podcast server
           icon: bookstack.svg
           widget:
               type: audiobookshelf
-              url: https://audiobookshelf.richardtomik.com
+              url: https://audiobookshelf.{{ domain }}
     - Apps:
       - Hoader:
-          href: https://hoarder.richardtomik.com/
+          href: https://hoarder.{{ domain }}/
           description: Link Bookmark and notes
           icon: hoarder.svg
       - Mealie:
-          href: https://mealie.richardtomik.com/g/home
+          href: https://mealie.{{ domain }}/g/home
           description: Recepies
           icon: mealie.svg
       - Immich:
-          href: https://immich.richardtomik.com
+          href: https://immich.{{ domain }}
           description: Photo and video management solution
           icon: immich.svg
       - Joplin Server:
-          href: https://joplin.richardtomik.com/
+          href: https://joplin.{{ domain }}/
           description: Joplin is an open source note-taking app
           icon: joplin.svg
       - Open Web-UI:
-          href: https://chatgpt.richardtomik.com/
+          href: https://chatgpt.{{ domain }}/
           description: Chat GPT
           icon: chatgpt.svg
         

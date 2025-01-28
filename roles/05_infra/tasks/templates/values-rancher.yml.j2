@@ -1,8 +1,16 @@
 hostname: rancher.{{ domain }}
+
 ingress:
+  enabled: true
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+  hosts:
+    - host: rancher.{{ domain }}
+      paths:
+        - path: /
+          pathType: Prefix
   tls:
-    source: letsEncrypt
-letsEncrypt:
-  email: {{ email }}
-  ingress:
-    class: traefik
+    source: secret
+    secretName: "{{ tls_secret_name }}"

@@ -208,6 +208,36 @@
           }}
       when: deploy_authentik | bool
 
+    - name: Add client and client secret to secret in argocd namespace
+      block:
+        - name: Check if argocd namespace exists
+          kubernetes.core.k8s_info:
+            kind: Namespace
+            name: argocd
+          register: namespace_info
+          ignore_errors: true
+          when: deploy_authentik | bool
+        - name: Create argocd namespace if it does not exist
+          kubernetes.core.k8s:
+            definition:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: argocd
+          when: namespace_info.resources | length == 0 and deploy_authentik | bool
+        - name: Add user credentials to secret
+          kubernetes.core.k8s:
+            definition:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: argocd-authentik-credentials
+                namespace: argocd
+              data:
+                authentik_client_id: "{{ argocd_client_id | b64encode }}"
+                authentik_client_secret: "{{ argocd_client_secret | b64encode }}"
+          when: deploy_authentik | bool
+
     - name: Check if ArgoCD application exists in Authentik
       uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=argocd"

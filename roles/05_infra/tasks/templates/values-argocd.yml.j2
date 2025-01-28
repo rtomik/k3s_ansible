@@ -26,8 +26,8 @@ configs:
       connectors:
       - config:
           issuer: https://authentik.{{ domain }}/application/o/argocd/
-          clientID: $oidc.authentik.clientID
-          clientSecret: $dex.authentik.clientSecret
+          clientID: ${AUTHENTIK_CLIENT_ID} 
+          clientSecret: ${AUTHENTIK_CLIENT_SECRET}
           insecureEnableGroups: true
           scopes:
             - openid
@@ -36,23 +36,16 @@ configs:
         name: authentik
         type: oidc
         id: authentik
-  # name: authentik
-  # type: oidc
-  # id: authentik
-  # name: Authentik
-  # issuer: https://authentik.{{ domain }}/application/o/argocd/
-  # clientID: $oidc.authentik.clientID
-  # clientSecret: $oidc.authentik.clientSecret
-  # requestedScopes: ["openid", "profile", "email"]
-  #   # Dex configuration
-  # dex.config: |
-  #   connectors:
-  #     # GitHub example
-  #     - type: github
-  #       id: github
-  #       name: GitHub
-  #       config:
-  #         clientID: aabbccddeeff00112233
-  #         clientSecret: $dex.github.clientSecret # Alternatively $<some_K8S_secret>:dex.github.clientSecret
-  #         orgs:
-  #         - name: your-github-org
+
+dex:
+  env:
+    - name: AUTHENTIK_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: argocd-authentik-credentials
+          key: authentik_client_id
+    - name: AUTHENTIK_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: argocd-authentik-credentials
+          key: authentik_client_secret
