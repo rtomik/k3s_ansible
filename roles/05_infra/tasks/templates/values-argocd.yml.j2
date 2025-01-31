@@ -16,7 +16,6 @@ server:
     extraTls:
       - hosts:
         - argocd.{{ domain }}
-        secretName: "{{ tls_secret_name }}"
 
 configs:
   params:

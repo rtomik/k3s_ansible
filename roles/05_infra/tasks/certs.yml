@@ -76,7 +76,6 @@
           solvers:
             - dns01:
                 cloudflare:
-                  email: "{{ email }}"
                   apiTokenSecretRef:
                     name: cloudflare-api-token
                     key: api-token

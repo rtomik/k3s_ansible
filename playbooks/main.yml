@@ -22,15 +22,18 @@
       vars:
         ansible_user: "{{ user }}"
       register: connection_test
+      tags: config
 
     - name: Set fact for initial setup
       set_fact:
         initial_setup: "{{ connection_test is failed }}"
+      tags: config
 
     - name: Create ansible user
       include_role:
         name: 02_create_user
       when: initial_setup | default(false)
+      tags: config
 
 - name: 03 Prepare and harden servers
   hosts: all
@@ -41,8 +44,6 @@
     - role: 03_base_config
       tags:
         - config
-        - config:firewall
-        - config:tailscale
 
 - name: 04 Deploy k3s cluster
   hosts: k3s_cluster

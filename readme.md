@@ -7,20 +7,22 @@ This repository contains Ansible playbooks and roles for deploying a highly avai
 
 This project automates the deployment of a k3s cluster on multiple nodes, along with the following applications:
 
+- Metalb (LoadBalancer)
 - Traefik (Ingress Controller)
 - Longhorn (Distributed Block Storage)
 - ArgoCD (GitOps Continuous Delivery)
 - Rancher (Kubernetes Management Platform)
 - Authentik (SSO)
 - Prometheus Stack (Monitoring)
+- Grafana
 - GitLab
-- Metalb (K3s LoadBalancer)
+- Homepage
 
 
-## Prerequisites
+## Requirements
 
-- Linux system/vm/or WSL on Windows where you can clone the repo. With packages Ansible 2.9 or higher and kubectl
-- Linux bare metal servers or VMs with installed Ubuntu Server 24.04 (Recommended 3)
+- Linux system/vm/or WSL on Windows where you can clone the repo. With Ansible and kubectl
+- Linux bare metal servers or VMs with installed Ubuntu Server 24.04 (recommended 3)
 - SSH access to all nodes (ssh keys to root)
 - Domain (recommended: https://porkbun.com/ or https://www.duckdns.org/)
 - Tailscale account https://login.tailscale.com/admin/settings/keys and create new auth keys
@@ -40,17 +42,33 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 3. Modify `group_vars/all/main.yml` to set your desired versions, configurations, and variables 
    Make sure to define variables under `Required variables` section
 
-4. Run the main playbook
+4. NOTE: If you enabled cloudflare it can take some time to propagate new TLS certificate
+   First deploy k3s and cert-manager, 
+   ```
+   ansible-playbook playbooks/main.yml --tags local,config,k3s,infra:metallb,infra:traefik,infra:certs
+   ```
+   Check if certificate is ready it may take up to 5-10 minutes.
+   ```
+   k get certificate -A
+   ```
+   Check cert-manager pod logs for any error
+   ```
+   CERT_MANAGER_POD=$(kubectl get pods -n cert-manager -l app.kubernetes.io/name=cert-manager -o jsonpath='{.items[0].metadata.name}')
+   k logs $CERT_MANAGER_POD -n cert-manager
+   ```
+   Rerun the main playbook when certificate is ready
+
+5. Run the main playbook
    ```
    ansible-playbook playbooks/main.yml
    ```
 
-5. To deploy specific components, use tags
+6. To deploy specific components, use tags
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-6. To destroy the cluster and remove everything:
+7. To destroy the cluster and remove everything:
    ```
    ansible-playbook playbooks/destroy.yml
    ```

@@ -9,8 +9,7 @@ ingress:
   path: /
   pathType: Prefix
   tls:
-    - secretName: "{{ tls_secret_name }}"
-      hosts:
+    - hosts:
         - grafana.{{ domain }}
 
 admin:

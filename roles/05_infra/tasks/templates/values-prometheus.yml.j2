@@ -13,6 +13,5 @@ server:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: "{{ tls_secret_name }}"
-        hosts:
+      - hosts:
           - prometheus.{{ domain }}
