@@ -23,9 +23,8 @@ server:
       kubernetes.io/ingress.class: traefik
       traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
     tls:
-      - secretName: "{{ tls_secret_name }}"
-        hosts:
-          - authentik.{{ domain }}
+      - hosts:
+        - authentik.{{ domain }}
 
 postgresql:
   enabled: true

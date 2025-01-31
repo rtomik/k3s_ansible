@@ -1,0 +1,46 @@
+ingress:
+  enabled: true
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+  hosts: 
+    - grafana.{{ domain }}
+  path: /
+  pathType: Prefix
+  tls:
+    - secretName: "{{ tls_secret_name }}"
+      hosts:
+        - grafana.{{ domain }}
+
+admin:
+  existingSecret: "grafana-admin-credentials"
+  userKey: admin-user
+  passwordKey: admin-password
+
+grafana.ini:
+  auth:
+      signout_redirect_url: "https://authentik.{{ domain }}/application/o/grafana/end-session/"
+      oauth_auto_login: true
+  auth.generic_oauth:
+      name: authentik
+      enabled: true
+      client_id: ${AUTHENTIK_CLIENT_ID} 
+      client_secret: ${AUTHENTIK_CLIENT_SECRET}
+      scopes: "openid profile email"
+      auth_url: "https://authentik.{{ domain }}/application/o/authorize/"
+      token_url: "https://authentik.{{ domain }}/application/o/token/"
+      api_url: "https://authentik.{{ domain }}/application/o/userinfo/"
+      role_attribute_path: contains(groups, 'Grafana Admins') && 'Admin' || contains(groups, 'Grafana Editors') && 'Editor' || 'Viewer'
+
+env:
+  - name: AUTHENTIK_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: grafana-authentik-credentials
+        key: authentik_client_id
+  - name: AUTHENTIK_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: grafana-authentik-credentials
+        key: authentik_client_secret

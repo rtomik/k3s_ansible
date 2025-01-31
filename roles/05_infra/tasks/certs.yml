@@ -12,13 +12,21 @@
   kubernetes.core.helm:
     name: cert-manager
     chart_ref: jetstack/cert-manager
-    chart_version: v1.8.0
+    chart_version: "{{ certmanager_version }}"
     release_namespace: cert-manager
     create_namespace: yes
     values:
       installCRDs: true
-      
-  when: cert_manager_check.resources | length == 0
+      replicaCount: 1
+      extraArgs:
+        - --dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53
+        - --dns01-recursive-nameservers-only
+      podDnsPolicy: None
+      podDnsConfig:
+        nameservers:
+          - 1.1.1.1
+          - 9.9.9.9
+  #when: cert_manager_check.resources | length == 0
 
 - name: Wait for cert-manager to be ready
   kubernetes.core.k8s_info:
@@ -30,3 +38,74 @@
   until: cert_manager_pods.resources | length > 0 and cert_manager_pods.resources | map(attribute='status.phase') | list | unique == ['Running']
   retries: 10
   delay: 30
+
+- name: Deploy reflector 
+  kubernetes.core.helm:
+    name: reflector 
+    chart_ref: emberstack/reflector
+    chart_version: "{{ reflector_version }}"
+    release_namespace: cert-manager
+  when: enable_cloudflare | bool
+
+- name: Add cloudflare api token to secret
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cloudflare-api-token
+        namespace: cert-manager
+      type: Opaque
+      data:
+        api-token: "{{ cloudflare_api_token | b64encode }}"
+  when: enable_cloudflare | bool
+
+- name: Create issuer 
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: cloudflare-issuer
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: "{{ email }}"
+          privateKeySecretRef:
+            name: cloudflare-key
+          solvers:
+            - dns01:
+                cloudflare:
+                  email: "{{ email }}"
+                  apiTokenSecretRef:
+                    name: cloudflare-api-token
+                    key: api-token
+              selector:
+                dnsZones:
+                  - "{{ domain }}"              
+  when: enable_cloudflare | bool
+
+- name: Create certificate
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: wildcard-{{ domain }}
+        namespace: cert-manager
+      spec:
+        secretName: "{{ tls_secret_name }}"
+        issuerRef:
+          name: cloudflare-issuer
+          kind: ClusterIssuer       
+        commonName: "*.{{ domain }}"           
+        dnsNames:
+        - "{{ domain }}"
+        - "*.{{ domain }}"
+        secretTemplate:
+          annotations:
+            reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+            reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "traefik"
+            reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+            reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "traefik"
+  when: enable_cloudflare | bool

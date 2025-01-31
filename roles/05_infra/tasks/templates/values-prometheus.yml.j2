@@ -1,0 +1,18 @@
+---
+# default values
+
+server:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+    hosts:
+      - host: prometheus.{{ domain }}
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: "{{ tls_secret_name }}"
+        hosts:
+          - prometheus.{{ domain }}

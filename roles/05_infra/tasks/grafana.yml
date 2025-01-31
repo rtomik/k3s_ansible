@@ -1,0 +1,52 @@
+---
+
+- name: Generate random password for Grafana admin
+  ansible.builtin.set_fact:
+    grafana_admin_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits,punctuation') }}"
+  when: deploy_grafana | bool
+
+- name: Create Grafana admin credentials secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-admin-credentials
+        namespace: monitoring
+      type: Opaque
+      data:
+        admin-user: "{{ 'admin' | b64encode }}"
+        admin-password: "{{ grafana_admin_password | b64encode }}"
+  when: deploy_grafana | bool
+
+- name: Check if Grafana is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: grafana
+    namespace: monitoring
+  register: grafana_check
+  ignore_errors: true
+  when: deploy_grafana | bool
+
+- name: Fetch grafana Helm chart information
+  kubernetes.core.helm_info:
+    name: grafana
+    release_namespace: monitoring
+  register: grafana_helm_info
+  ignore_errors: true
+  when: deploy_grafana | bool
+
+- name: Deploy or upgrade grafana
+  kubernetes.core.helm:
+    name: grafana
+    chart_ref: grafana/grafana
+    chart_version: "{{ grafana_version }}"
+    release_namespace: monitoring
+    create_namespace: yes
+    values: "{{ lookup('template', 'values-grafana.yml.j2') | from_yaml }}"
+    wait: yes
+    wait_timeout: 5m
+  register: grafana_deploy
+  when: deploy_grafana | bool

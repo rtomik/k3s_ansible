@@ -21,6 +21,8 @@
     - { name: jetstack, url: "https://charts.jetstack.io" }
     - { name: metallb, url: "https://metallb.github.io/metallb" } 
     - { name: gitlab, url: "https://charts.gitlab.io/" } 
+    - { name: grafana, url: "https://grafana.github.io/helm-charts"}
+    - { name: emberstack , url: "https://emberstack.github.io/helm-charts"}
   tags:
     - infra
     - infra:repos
@@ -29,6 +31,11 @@
   tags:
     - infra
     - infra:metallb
+
+- import_tasks: traefik.yml
+  tags:
+    - infra
+    - infra:traefik
 
 - import_tasks: certs.yml
   tags:
@@ -39,6 +46,11 @@
   tags:
     - infra
     - infra:rancher
+
+- import_tasks: authentik.yml
+  tags:
+    - infra
+    - infra:authentik
 
 - import_tasks: argocd.yml
   tags:
@@ -54,11 +66,13 @@
   tags:
     - infra
     - infra:monitoring
+    - infra:prometheus
 
-- import_tasks: authentik.yml
+- import_tasks: grafana.yml
   tags:
     - infra
-    - infra:authentik
+    - infra:monitoring
+    - infra:grafana
 
 - import_tasks: gitlab.yml
   tags:

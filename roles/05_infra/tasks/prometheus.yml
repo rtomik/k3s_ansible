@@ -22,26 +22,9 @@
     chart_version: "{{ prometheus_stack_version }}"
     release_namespace: monitoring
     create_namespace: yes
-    values:
-      prometheus:
-        ingress:
-          enabled: true
-          annotations:
-            kubernetes.io/ingress.class: traefik
-            traefik.ingress.kubernetes.io/router.tls.certresolver: le
-          hosts:
-            - prometheus.{{ domain }}
-          tls:
-            - secretName: prometheus-tls
-              hosts:
-                - prometheus.{{ domain }}
+    values: "{{ lookup('template', 'values-prometheus.yml.j2') | from_yaml }}"
     wait: yes
-    wait_timeout: 1m
-  when: >
-    prometheus_check.resources | length == 0 or
-    (prometheus_helm_info.status is defined and
-     prometheus_helm_info.status.chart_version is defined and
-     prometheus_helm_info.status.chart_version is version(prometheus_stack_version, '<'))
+    wait_timeout: 5m
   register: prometheus_deploy
 
 - name: Wait for Prometheus to be ready
