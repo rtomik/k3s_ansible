@@ -1,0 +1,30 @@
+---
+- name: Check if Home Assistant is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: home-assistant 
+    namespace: home-assistant
+  register: homeassistant_check
+  ignore_errors: true
+  when: deploy_homeassistant | bool
+
+- name: Fetch Home Assistant Helm chart information
+  kubernetes.core.helm_info:
+    name: home-assistant
+    release_namespace: homeassistant
+  register: homeassistant_helm_info
+  ignore_errors: true
+  when: deploy_homeassistant | bool
+
+- name: Deploy or upgrade Home Assistant
+  kubernetes.core.helm:
+    name: home-assistant 
+    chart_ref: pajikos/home-assistant
+    release_namespace: home-assistant
+    create_namespace: yes
+    values: "{{ lookup('template', 'values-homeassistant.yml.j2') | from_yaml }}"
+    wait: yes
+    wait_timeout: 5m
+  register: homeassistant_deploy
+  when: deploy_homeassistant | bool

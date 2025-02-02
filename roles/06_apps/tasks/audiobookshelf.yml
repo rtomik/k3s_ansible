@@ -1,0 +1,30 @@
+---
+- name: Check if audiobookshelf is already installed
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: audiobookshelf
+    namespace: audiobookshelf
+  register: audiobookshelf_check
+  ignore_errors: true
+  when: deploy_audiobookshelf | bool
+
+- name: Fetch audiobookshelf Helm chart information
+  kubernetes.core.helm_info:
+    name: audiobookshelf
+    release_namespace: audiobookshelf
+  register: audiobookshelf_helm_info
+  ignore_errors: true
+  when: deploy_audiobookshelf | bool
+
+- name: Deploy or upgrade audiobookshelf
+  kubernetes.core.helm:
+    name: audiobookshelf 
+    chart_ref: audiobookshelf/audiobookshelf
+    release_namespace: audiobookshelf
+    create_namespace: yes
+    values: "{{ lookup('template', 'values-audiobookshelf.yml.j2') | from_yaml }}"
+    wait: yes
+    wait_timeout: 5m
+  register: audiobookshelf_deploy
+  when: deploy_audiobookshelf | bool

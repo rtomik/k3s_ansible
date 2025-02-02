@@ -25,8 +25,8 @@ configs:
       connectors:
       - config:
           issuer: https://authentik.{{ domain }}/application/o/argocd/
-          clientID: ${AUTHENTIK_CLIENT_ID} 
-          clientSecret: ${AUTHENTIK_CLIENT_SECRET}
+          clientID: ${authentik_client_id} 
+          clientSecret: ${authentik_client_secret}
           insecureEnableGroups: true
           scopes:
             - openid
@@ -38,12 +38,12 @@ configs:
 
 dex:
   env:
-    - name: AUTHENTIK_CLIENT_ID
+    - name: authentik_client_id
       valueFrom:
         secretKeyRef:
           name: argocd-authentik-credentials
           key: authentik_client_id
-    - name: AUTHENTIK_CLIENT_SECRET
+    - name: authentik_client_secret
       valueFrom:
         secretKeyRef:
           name: argocd-authentik-credentials

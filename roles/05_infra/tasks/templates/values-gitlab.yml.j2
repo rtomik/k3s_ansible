@@ -5,7 +5,6 @@
 global:
   hosts:
     domain: "{{ domain }}"
-
   ingress:
     enabled: true
     configureCertmanager: false
@@ -16,7 +15,6 @@ global:
         traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
     tls:
         enabled: true
-        secretName: "{{ tls_secret_name }}"
   edition: ce
 certmanager:
   install: false

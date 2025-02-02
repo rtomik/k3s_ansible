@@ -30,10 +30,17 @@ config:
           href: https://longhorn.{{ domain }}/
           description: 
           icon: 
+
+    - Monitoring:
       - Prometheus:
           href: https://prometheus.{{ domain }}/
           description: 
-          icon:          
+          icon:
+      - Grafana:
+          href: https://grafana.{{ domain }}/
+          description: 
+          icon:
+           
     - Media:
       - Jellyfin:
           href: https://jellyfin.{{ domain }}
@@ -68,6 +75,10 @@ config:
           href: https://chatgpt.{{ domain }}/
           description: Chat GPT
           icon: chatgpt.svg
+      - Home Assistant:
+          href: https://home.{{ domain }}/
+          description: 
+          icon:     
         
   widgets:
     # show the kubernetes widget, with the cluster summary and individual nodes
@@ -123,8 +134,8 @@ config:
       Apps:
         icon: mdi-cog-play-#FFFFFF
         header: true
-        style: row
-        columns: 5
+        #style: row
+        #columns: 5
 
 
 # The service account is necessary to allow discovery of other services
@@ -148,6 +159,5 @@ ingress:
           - path: /
             pathType: Prefix
     tls:
-      - secretName: "{{ tls_secret_name }}"
-        hosts:
+      - hosts:
           - homepage.{{ domain }}

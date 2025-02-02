@@ -1,0 +1,51 @@
+
+timezone: "{{ timezone }}"
+replicaCount: 1
+
+# Ingress configuration
+ingress:
+  enabled: true
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+  hosts:
+    - host: audiobookshelf.{{ domain }}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - audiobookshelf.{{ domain }}
+
+persistence:
+  config:
+    enabled: true
+    mountPath: /config
+    storageClass: longhorn
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    annotations:
+      longhorn.io/backup: "false"
+  metadata:
+    enabled: true
+    mountPath: /metadata
+    storageClass: longhorn
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    annotations:
+      longhorn.io/backup: "true"
+  media:
+    enabled: true
+    mountPath: /audiobooks
+    storageClass: longhorn
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    annotations:
+      longhorn.io/backup: "true"
+
+image:
+  repository: ghcr.io/advplyr/audiobookshelf
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "{{ audiobookshelf_version }}"

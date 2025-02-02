@@ -17,8 +17,19 @@ tailscale_ip_range: <ip range in tailscale for nodes>  #Tailcale ip range for me
 # Cloudflare api token settings Permissions: Zone - DNS - Edit Zone - Zone - Read Zone Resources: Include - All Zones
 enable_cloudflare: true
 cloudflare_api_token:
+tls_secret_name: "wildcard-{{ domain }}-tls"
 
 # ----- Optional variables --------- #
+
+# Change to false if you dont want to deploy the app
+deploy_rancher: true
+deploy_authentik: true
+deploy_gitlab: true
+deploy_argocd: true
+deploy_grafana: true
+deploy_homepage: true
+deploy_jellyfin: true
+deploy_arr_stack: false
 
 # K3s config
 k3s_version: v1.31.2+k3s1
@@ -30,27 +41,22 @@ k3s_server_args: >-
   --node-ip {{ tailscale_ip.stdout }}
   --disable=servicelb
   --flannel-iface tailscale0
+  --disable=traefik
 
-# Set to false if you don't want to deploy these apps
-deploy_rancher: true  
-deploy_gitlab: true
-deploy_authentik: true
-
-# Infrastructure app versions
+# Helm chart versions
+traefik_version: 34.1.0
+certmanager_version: 1.16.3
 argocd_version: 7.7.8
 longhorn_version: 1.7.2
 prometheus_stack_version: 66.3.1
-authentik_version: 2024.6.1
+authentik_version: 2024.12.2
 rancher_version: 2.10.1
 metallb_version: 0.14.9
 gitlab_version: 8.8.0
-
-# Optional apps
-deploy_jellyfin: true  
-deploy_homepage: true
-
 jellyfin_version: 2.1.0
 homepage_version: 2.0.1
+grafana_version: 8.8.5
+reflector_version: 7.1.288
 
 # Server configuration
 perform_full_upgrade: true
@@ -64,3 +70,4 @@ ansible_initial_user: root
 # Vault
 vault_file: "../group_vars/all/vault.yml"
 vault_password_file: "../.vault"
+

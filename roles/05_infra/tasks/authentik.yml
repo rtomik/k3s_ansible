@@ -416,7 +416,7 @@
             "name": "Grafana",
             "slug": "grafana",
             "provider": "{{ grafana_provider_id }}",
-            "meta_launch_url": "https://grafana.{{ domain }}/auth/login",
+            "meta_launch_url": "https://grafana.{{ domain }}/",
             "open_in_new_tab": true
           }
         body_format: json

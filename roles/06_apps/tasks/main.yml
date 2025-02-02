@@ -7,22 +7,33 @@
   loop:
     - { name: jellyfin, url: "https://jellyfin.github.io/jellyfin-helm" }
     - { name: jameswynn, url: "https://jameswynn.github.io/helm-charts" }
+    - { name: audiobookshelf, url: "https://gitlab.com/api/v4/projects/57546317/packages/helm/release" }
+    - { name: pajikos, url: "http://pajikos.github.io/home-assistant-helm-chart/" }
   tags:
     - apps
     - apps:repos
-
+    - apps:jellyfin
+    - apps:homepage
+    - apps:audiobookshelf
 
 - import_tasks: jellyfin.yml
   tags:
     - apps
     - apps:jellyfin
 
-
 - import_tasks: homepage.yml
   tags:
     - apps
     - apps:homepage
 
+- import_tasks: audiobookshelf.yml
+  tags:
+    - apps
+    - apps:audiobookshelf
 
-
+- import_tasks: homeassistant.yml
+  tags:
+    - apps
+    - apps:homeassistant
+    - apps:smarthome
 
