@@ -7,7 +7,6 @@
     - role: 01_local
       tags:
         - local
-        - vault
 
 - name: 02 Check if ansible user exists and create if necessary
   hosts: all

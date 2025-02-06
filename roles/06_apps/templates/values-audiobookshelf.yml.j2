@@ -5,9 +5,9 @@ replicaCount: 1
 # Ingress configuration
 ingress:
   enabled: true
+  className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
   hosts:
     - host: audiobookshelf.{{ domain }}
@@ -33,14 +33,6 @@ persistence:
     storageClass: longhorn
     accessMode: ReadWriteOnce
     size: 1Gi
-    annotations:
-      longhorn.io/backup: "true"
-  media:
-    enabled: true
-    mountPath: /audiobooks
-    storageClass: longhorn
-    accessMode: ReadWriteOnce
-    size: 10Gi
     annotations:
       longhorn.io/backup: "true"
 

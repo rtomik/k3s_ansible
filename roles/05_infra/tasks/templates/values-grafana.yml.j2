@@ -1,3 +1,6 @@
+---
+# default values 
+
 ingress:
   enabled: true
   annotations:
@@ -37,3 +40,46 @@ env:
         key: admin-password
   
 envFromSecret: "grafana-authentik-credentials"
+
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: 'kubernetes'
+      orgId: 1
+      folder: 'Kubernetes'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/kubernetes
+
+persistence:
+  enabled: true
+  type: pvc
+  size: 10Gi
+  storageClassName: longhorn
+
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    searchNamespace: monitoring
+    folderAnnotation: grafana_folder
+    provider:
+      allowUiUpdates: true
+      foldersFromFilesStructure: true
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-kube-prometheus-prometheus:9090
+      access: proxy
+      isDefault: true
+      jsonData:
+        timeInterval: 30s
+        queryTimeout: 30s

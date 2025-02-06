@@ -20,6 +20,52 @@
         admin-password: "{{ grafana_admin_password | b64encode }}"
   when: deploy_grafana | bool
 
+- name: Create dashboard directory
+  delegate_to: localhost
+  file:
+    path: "{{ playbook_dir }}/../roles/05_infra/grafana/files/dashboards"
+    state: directory
+    mode: '0755'
+  when: deploy_grafana | bool
+
+- name: Download K8s dashboards
+  delegate_to: localhost
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ playbook_dir }}/../roles/05_infra/grafana/files/dashboards/{{ item.name }}.json"
+    mode: '0644'
+  loop:
+    - name: "k8s-api-monitoring"
+      url: "https://grafana.com/api/dashboards/15761/revisions/18/download"
+    - name: "k8s-global"
+      url: "https://grafana.com/api/dashboards/15757/revisions/42/download"
+    - name: "k8s-namespaces"
+      url: "https://grafana.com/api/dashboards/15758/revisions/41/download"
+    - name: "k8s-nodes"
+      url: "https://grafana.com/api/dashboards/15759/revisions/32/download"
+    - name: "k8s-pods"
+      url: "https://grafana.com/api/dashboards/15760/revisions/34/download"
+  when: deploy_grafana | bool
+
+- name: Create Grafana dashboards ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grafana-dashboards
+        namespace: monitoring
+        labels:
+          grafana_dashboard: "1"
+      data:
+        k8s-api-monitoring.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-api-monitoring.json') | string }}"
+        k8s-global.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-global.json') | string }}"
+        k8s-namespaces.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-namespaces.json') | string }}"
+        k8s-nodes.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-nodes.json') | string }}"
+        k8s-pods.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-pods.json') | string }}"
+  when: deploy_grafana | bool
+
 - name: Check if Grafana is already installed
   kubernetes.core.k8s_info:
     api_version: apps/v1
@@ -50,3 +96,17 @@
     wait_timeout: 5m
   register: grafana_deploy
   when: deploy_grafana | bool
+
+- name: Wait for Grafana to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: monitoring
+    label_selectors:
+      - app.kubernetes.io/name=grafana
+  register: grafana_pods
+  until: >
+    grafana_pods.resources | length > 0 and
+    (grafana_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+  retries: 30
+  delay: 10
+  when: grafana_deploy is changed and deploy_grafana | bool

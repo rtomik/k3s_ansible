@@ -13,19 +13,23 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 - ArgoCD (GitOps Continuous Delivery)
 - Rancher (Kubernetes Management Platform)
 - Authentik (SSO)
-- Prometheus Stack (Monitoring)
+- Prometheus (Monitoring)
 - Grafana
 - GitLab
 - Homepage
+  
+## Features
 
 
 ## Requirements
 
-- Linux system/vm/or WSL on Windows where you can clone the repo. With Ansible and kubectl
-- Linux bare metal servers or VMs with installed Ubuntu Server 24.04 (recommended 3)
+- Linux system/vm or WSL on Windows where you can clone the repo. With Ansible and kubectl
+- Servers/PCs/VMs with installed Ubuntu Server 24.04 min 16 GB RAM (recommended 3) refered as nodes
 - SSH access to all nodes (ssh keys to root)
 - Domain (recommended: https://porkbun.com/ or https://www.duckdns.org/)
 - Tailscale account https://login.tailscale.com/admin/settings/keys and create new auth keys
+- Optional: If you want to have TLS certificate on the services create cloudflare account and create api token
+- Optional: NFS share for media storage and backups
 
 
 ## Usage

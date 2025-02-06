@@ -149,9 +149,9 @@ enableRbac: true
 ingress:
   main:
     enabled: true
+    className: traefik
     annotations:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      kubernetes.io/ingress.class: traefik
       traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
     hosts:
       - host: homepage.{{ domain }}
