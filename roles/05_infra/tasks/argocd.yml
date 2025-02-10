@@ -46,16 +46,3 @@
   retries: 20
   delay: 30
   when: deploy_argocd | bool and argocd_deploy is changed
-
-- name: Retrieve ArgoCD admin password
-  kubernetes.core.k8s_info:
-    kind: Secret
-    name: argocd-initial-admin-secret
-    namespace: argocd
-  register: argocd_admin_secret
-  when: deploy_argocd | bool and argocd_deploy is changed
-
-- name: Display ArgoCD admin password
-  debug:
-    msg: "ArgoCD admin password: {{ argocd_admin_secret.resources[0].data.password | b64decode }}"
-  when: deploy_argocd | bool and argocd_deploy is changed and argocd_admin_secret.resources | length > 0

@@ -25,12 +25,7 @@
     release_namespace: gitlab
     create_namespace: yes
     values: "{{ lookup('template', 'values-gitlab.yml.j2') | from_yaml }}"
-  when: >
-    deploy_gitlab | bool and
-    (gitlab_check.resources | length == 0 or
-    (gitlab_helm_info.status is defined and
-      gitlab_helm_info.status.chart_version is defined and
-      gitlab_helm_info.status.chart_version is version(gitlab_version, '<')))
+  when: deploy_gitlab | bool
   register: gitlab_deploy
 
 - name: Wait for GitLab to be ready
@@ -45,19 +40,4 @@
     (gitlab_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
   retries: 30
   delay: 30
-  when: deploy_gitlab | bool and gitlab_deploy is changed
-
-- name: Get GitLab root password
-  kubernetes.core.k8s_info:
-    kind: Secret
-    name: gitlab-gitlab-initial-root-password
-    namespace: gitlab
-  register: gitlab_root_secret
-  when: deploy_gitlab | bool and gitlab_deploy is changed
-
-- name: Display GitLab URL and root password
-  debug:
-    msg: 
-      - "GitLab is now available at https://gitlab.{{ domain }}"
-      - "GitLab root password: {{ gitlab_root_secret.resources[0].data['password'] | b64decode }}"
   when: deploy_gitlab | bool and gitlab_deploy is changed

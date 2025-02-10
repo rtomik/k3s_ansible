@@ -1,13 +1,14 @@
+---
+# default values
+# https://artifacthub.io/packages/helm/rancher-stable/rancher?modal=values
 hostname: rancher.{{ domain }}
 
 ingress:
   enabled: true
+  ingressClassName: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
-  hosts:
-    - host: rancher.{{ domain }}
-      paths:
-        - path: /
-          pathType: Prefix
+  pathType: ImplementationSpecific
+  path: "/"
+  servicePort: 80

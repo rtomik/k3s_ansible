@@ -18,25 +18,25 @@ server:
         - argocd.{{ domain }}
 
 configs:
-  params:
-    server.insecure: true
   cm:
+    url: https://argocd.{{ domain }}
     dex.config: |
       connectors:
-      - config:
+      - type: oidc
+        id: authentik
+        name: authentik
+        config:
           issuer: https://authentik.{{ domain }}/application/o/argocd/
-          clientID: ${authentik_client_id} 
-          clientSecret: ${authentik_client_secret}
-          insecureEnableGroups: true
+          clientID: $authentik_client_id
+          clientSecret: $authentik_client_secret
+          redirectURI: https://argocd.{{ domain }}/api/dex/callback
+          insecureSkipVerify: true
           scopes:
             - openid
             - profile
             - email
-        name: authentik
-        type: oidc
-        id: authentik
-
 dex:
+  enabled: true
   env:
     - name: authentik_client_id
       valueFrom:

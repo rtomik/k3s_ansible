@@ -1,26 +1,70 @@
----
-# default values
-# https://gitlab.com/gitlab-org/charts/gitlab/-/blob/master/values.yaml
-
 global:
   hosts:
     domain: "{{ domain }}"
+    gitlab:
+      name: gitlab.{{ domain }}
   ingress:
     enabled: true
     configureCertmanager: false
-    class: "traefik"
+    provider: traefik
+    class: traefik
     annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: websecure
-        kubernetes.io/ingress.class: traefik
-        traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
     tls:
-        enabled: true
+      enabled: true
+      secretName: "{{ tls_secret_name }}"
   edition: ce
+
 certmanager:
   install: false
+
 nginx-ingress:
   enabled: false
+
 gitlab-runner:
   install: false
+
 prometheus:
   install: false
+
+gitlab:
+  webservice:
+    ingress:
+      enabled: true
+      tls:
+        enabled: true
+        secretName: "{{ tls_secret_name }}"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        memory: 1Gi
+  sidekiq:
+    resources:
+      limits:
+        memory: 1Gi
+      requests:
+        memory: 512Mi
+  gitlab-shell:
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 128Mi
+
+redis:
+  master:
+    resources:
+      limits:
+        memory: 512Mi
+      requests:
+        memory: 256Mi
+
+postgresql:
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      memory: 512Mi
