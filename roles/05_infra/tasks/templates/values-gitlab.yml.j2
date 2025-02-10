@@ -1,3 +1,6 @@
+# default values
+# https://gitlab.com/gitlab-org/charts/gitlab/-/blob/master/values.yaml
+
 global:
   hosts:
     domain: "{{ domain }}"
@@ -16,21 +19,33 @@ global:
       enabled: true
       secretName: "{{ tls_secret_name }}"
   edition: ce
-
-certmanager:
-  install: false
-
-nginx-ingress:
-  enabled: false
-
-gitlab-runner:
-  install: false
-
-prometheus:
-  install: false
+  
+  appConfig:
+    omniauth:
+      enabled: true
+      autoSignInWithProvider: 'openid_connect'
+      syncEmailFromProvider: ['openid_connect']
+      syncProfileFromProvider: ['openid_connect']
+      syncProfileAttributes: ['email']
+      allowSingleSignOn: ['openid_connect']
+      blockAutoCreatedUsers: false
+      autoLinkLdapUser: false
+      autoLinkSamlUser: true
+      autoLinkUser: ['openid_connect']
+      externalProviders: []
+      allowBypassTwoFactor: []
+      providers:
+        - secret: gitlab-authentik-oauth2
+          key: provider
 
 gitlab:
   webservice:
+    minReplicas: 1
+    maxReplicas: "{{ [groups['k3s_cluster'] | length, 3] | min }}"    
+    extraEnv:
+      OAUTH_ALLOW_SSO: 'true'
+      OAUTH_AUTO_LINK_USER: 'true'
+      OAUTH_AUTO_SIGN_IN_WITH_PROVIDER: 'openid_connect'
     ingress:
       enabled: true
       tls:
@@ -53,6 +68,18 @@ gitlab:
         memory: 256Mi
       requests:
         memory: 128Mi
+
+certmanager:
+  install: false
+
+nginx-ingress:
+  enabled: false
+
+gitlab-runner:
+  install: false
+
+prometheus:
+  install: false
 
 redis:
   master:

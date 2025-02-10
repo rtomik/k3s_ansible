@@ -427,4 +427,181 @@
         - deploy_authentik | bool
         - not app_exists
 
+- name: Authentik GitLab
+  block:
+    - name: Check if OAuth2 Provider for GitLab exists
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20GitLab"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: check_provider_response
+      changed_when: false
+      failed_when: check_provider_response.status not in [200, 404]
+      when: deploy_authentik | bool and deploy_gitlab | bool 
 
+    - name: Set provider exists fact
+      set_fact:
+        provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
+      when: deploy_authentik | bool and deploy_gitlab | bool 
+
+    - name: Create OAuth2 Provider for GitLab
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        body: |
+          {
+            "name": "Provider for GitLab",
+            "slug": "provider-for-gitlab",
+            "client_type": "confidential",
+            "authorization_flow": "{{ default_authorization_flow_id }}",
+            "invalidation_flow": "{{ default_invalidation_flow_id }}",
+            "property_mappings": [
+              "{{ email_scope_uuid }}",
+              "{{ openid_scope_uuid }}",
+              "{{ profile_scope_uuid }}"
+            ],
+            "redirect_uris": [
+              {
+                "matching_mode": "regex",
+                "url": "https://gitlab.{{ domain }}/users/auth/openid_connect/callback"
+              }
+            ],
+            "sub_mode": "user_email",
+            "access_code_validity": "minutes=1",
+            "refresh_token_validity": "days=30",
+            "id_token_validity": "minutes=60",
+            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
+            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
+          }
+        body_format: json
+      register: create_provider_response
+      changed_when: create_provider_response.status == 201
+      failed_when: create_provider_response.status not in [200, 201]
+      when:
+        - deploy_authentik | bool
+        - not provider_exists
+
+    - name: Save client credentials
+      set_fact:
+        gitlab_client_id: >-
+          {{
+            (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
+              else create_provider_response.json.client_id)
+          }}
+        gitlab_client_secret: >-
+          {{
+            (check_provider_response.json.results[0].client_secret if check_provider_response.json.results | length > 0
+              else create_provider_response.json.client_secret)
+          }}
+        gitlab_provider_id: >-
+          {{
+            (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
+              else create_provider_response.json.pk)
+          }}
+      when: deploy_authentik | bool and deploy_gitlab | bool 
+
+    - name: Check if GitLab application exists in Authentik
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=gitlab"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: yes
+      register: check_app_response
+      changed_when: false
+      failed_when: check_app_response.status not in [200, 404]
+      when: deploy_authentik | bool and deploy_gitlab | bool 
+
+    - name: Set application exists fact
+      set_fact:
+        app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
+      when: deploy_authentik | bool and deploy_gitlab | bool 
+
+    - name: Create an GitLab application in Authentik
+      uri:
+        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        body: |
+          {
+            "name": "GitLab",
+            "slug": "gitlab",
+            "provider": "{{ gitlab_provider_id }}",
+            "meta_launch_url": "https://gitlab.{{ domain }}/auth/login",
+            "open_in_new_tab": true
+          }
+        body_format: json
+      register: create_app_response
+      changed_when: create_app_response.status == 201
+      failed_when: create_app_response.status not in [200, 201]
+      when:
+        - deploy_authentik | bool
+        - not app_exists
+        - deploy_gitlab | bool 
+  
+    - name: Add client and client secret to secret in GitLab namespace
+      block:
+        - name: Check if GitLab namespace exists
+          kubernetes.core.k8s_info:
+            kind: Namespace
+            name: gitlab
+          register: namespace_info
+          ignore_errors: true
+          when: deploy_authentik | bool and deploy_gitlab | bool 
+        - name: Create GitLab namespace if it does not exist
+          kubernetes.core.k8s:
+            definition:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: gitlab
+          when: namespace_info.resources | length == 0 and deploy_authentik | bool
+        - name: Add user credentials to secret
+          kubernetes.core.k8s:
+            definition:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: gitlab-authentik-credentials
+                namespace: gitlab
+              data:
+                authentik_client_id: "{{ gitlab_client_id | b64encode }}"
+                authentik_client_secret: "{{ gitlab_client_secret | b64encode }}"
+          when: deploy_authentik | bool and deploy_gitlab | bool 
+        - name: Add GitLab OAuth configuration secret
+          kubernetes.core.k8s:
+            definition:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: gitlab-authentik-oauth2
+                namespace: gitlab
+              type: Opaque
+              stringData:
+                provider: |
+                  name: openid_connect
+                  label: Authentik
+                  args:
+                    name: openid_connect
+                    scope: ["openid", "profile", "email"]
+                    response_type: code
+                    issuer: https://authentik.{{ domain }}/application/o/gitlab/
+                    discovery: true
+                    client_auth_method: query
+                    uid_field: preferred_username
+                    send_scope_to_token_endpoint: true
+                    pkce: true
+                    client_options:
+                      identifier: "{{ gitlab_client_id }}"
+                      secret: "{{ gitlab_client_secret }}"
+                      redirect_uri: https://gitlab.{{ domain }}/users/auth/openid_connect/callback
+          when: deploy_authentik | bool and deploy_gitlab | bool                       

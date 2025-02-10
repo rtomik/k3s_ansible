@@ -3,6 +3,8 @@
 # https://artifacthub.io/packages/helm/rancher-stable/rancher?modal=values
 hostname: rancher.{{ domain }}
 
+replicas: "{{ [groups['k3s_cluster'] | length, 3] | min }}"
+
 ingress:
   enabled: true
   ingressClassName: traefik
