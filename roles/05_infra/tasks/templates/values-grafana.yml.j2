@@ -83,3 +83,15 @@ datasources:
       jsonData:
         timeInterval: 30s
         queryTimeout: 30s
+    - name: Loki
+      type: loki
+      url: http://loki:3100/
+      access: proxy
+      isDefault: false
+      jsonData:
+        timeInterval: 30s
+        queryTimeout: 30s
+      secureJsonData:
+        httpHeaderValue1: "configured"
+      jsonData:
+        httpHeaderName1: "X-Scope-OrgID"

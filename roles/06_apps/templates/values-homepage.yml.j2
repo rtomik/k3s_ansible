@@ -8,38 +8,34 @@ config:
     - Infrastructure:
       - Rancher:
           href: https://rancher.{{ domain }}/
-          description: 
-          icon:           
+          description: Kubernetes Management
+          icon: rancher.svg
       - ArgoCD:
           href: https://argocd.{{ domain }}
           description: GitOps CD tool for Kubernetes
-          icon: 
-          widget:
-              type: argocd
-              url: https://argocd.{{ domain }}
-              env: 2
+          icon: argo.svg
       - Authentik:
           href: https://authentik.{{ domain }}/
-          description: SSO
-          icon: 
+          description: SSO Provider
+          icon: authentik.svg
       - GitLab:
           href: https://gitlab.{{ domain }}/
-          description: 
-          icon: 
+          description: Git Repository Manager
+          icon: gitlab.svg
       - Longhorn:
           href: https://longhorn.{{ domain }}/
-          description: 
-          icon: 
+          description: Cloud Native Storage
+          icon: longhorn.svg
 
     - Monitoring:
       - Prometheus:
           href: https://prometheus.{{ domain }}/
-          description: 
-          icon:
+          description: Monitoring System
+          icon: prometheus.svg
       - Grafana:
           href: https://grafana.{{ domain }}/
-          description: 
-          icon:
+          description: Analytics & Monitoring
+          icon: grafana.svg
            
     - Media:
       - Jellyfin:
@@ -55,30 +51,10 @@ config:
               type: audiobookshelf
               url: https://audiobookshelf.{{ domain }}
     - Apps:
-      - Hoader:
-          href: https://hoarder.{{ domain }}/
-          description: Link Bookmark and notes
-          icon: hoarder.svg
-      - Mealie:
-          href: https://mealie.{{ domain }}/g/home
-          description: Recepies
-          icon: mealie.svg
-      - Immich:
-          href: https://immich.{{ domain }}
-          description: Photo and video management solution
-          icon: immich.svg
-      - Joplin Server:
-          href: https://joplin.{{ domain }}/
-          description: Joplin is an open source note-taking app
-          icon: joplin.svg
-      - Open Web-UI:
-          href: https://chatgpt.{{ domain }}/
-          description: Chat GPT
-          icon: chatgpt.svg
       - Home Assistant:
           href: https://home.{{ domain }}/
-          description: 
-          icon:     
+          description: Home Automation
+          icon: home-assistant.svg  
         
   widgets:
     # show the kubernetes widget, with the cluster summary and individual nodes

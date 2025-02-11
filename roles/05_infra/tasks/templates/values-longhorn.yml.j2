@@ -1,0 +1,12 @@
+---
+persistence:
+    defaultClass: true
+defaultSettings:
+    defaultDataPath: "/var/lib/longhorn"
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    additionalLabels:
+      release: prometheus

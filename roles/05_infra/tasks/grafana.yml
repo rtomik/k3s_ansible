@@ -45,6 +45,8 @@
       url: "https://grafana.com/api/dashboards/15759/revisions/32/download"
     - name: "k8s-pods"
       url: "https://grafana.com/api/dashboards/15760/revisions/34/download"
+    - name: "longhorn"
+      url: "https://grafana.com/api/dashboards/16888/revisions/9/download"
   when: deploy_grafana | bool
 
 - name: Create Grafana dashboards ConfigMap
@@ -64,6 +66,7 @@
         k8s-namespaces.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-namespaces.json') | string }}"
         k8s-nodes.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-nodes.json') | string }}"
         k8s-pods.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-pods.json') | string }}"
+        longhorn.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/longhorn.json') | string }}"
   when: deploy_grafana | bool
 
 - name: Check if Grafana is already installed
