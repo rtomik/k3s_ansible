@@ -4,49 +4,52 @@ config:
         - Github:
             - abbr: GH
               href: https://github.com/
+        - Icons:
+            - abbr: IC
+              href: https://github.com/homarr-labs/dashboard-icons/tree/main/svg
   services:
     - Infrastructure:
       - Rancher:
           href: https://rancher.{{ domain }}/
           description: Kubernetes Management
-          icon: rancher.svg
+          icon: /icons/rancher.svg
       - ArgoCD:
           href: https://argocd.{{ domain }}
           description: GitOps CD tool for Kubernetes
-          icon: argo.svg
+          icon: /icons/argo.svg
       - Authentik:
           href: https://authentik.{{ domain }}/
           description: SSO Provider
-          icon: authentik.svg
+          icon: /icons/authentik.svg
       - GitLab:
           href: https://gitlab.{{ domain }}/
           description: Git Repository Manager
-          icon: gitlab.svg
+          icon: /icons/gitlab.svg
       - Longhorn:
           href: https://longhorn.{{ domain }}/
           description: Cloud Native Storage
-          icon: longhorn.svg
+          icon: /icons/longhorn.svg
 
     - Monitoring:
       - Prometheus:
           href: https://prometheus.{{ domain }}/
           description: Monitoring System
-          icon: prometheus.svg
+          icon: /icons/prometheus.svg
       - Grafana:
           href: https://grafana.{{ domain }}/
           description: Analytics & Monitoring
-          icon: grafana.svg
+          icon: /icons/grafana.svg
            
     - Media:
       - Jellyfin:
           href: https://jellyfin.{{ domain }}
           description: Media System
-          icon: jellyfin.svg
+          icon: /icons/jellyfin.svg
 
       - Audiobookshelf:
           href: https://audiobookshelf.{{ domain }}
           description: Self-hosted audiobook and podcast server
-          icon: bookstack.svg
+          icon: /icons/bookstack.svg
           widget:
               type: audiobookshelf
               url: https://audiobookshelf.{{ domain }}
@@ -54,7 +57,7 @@ config:
       - Home Assistant:
           href: https://home.{{ domain }}/
           description: Home Automation
-          icon: home-assistant.svg  
+          icon: /icons/home-assistant.svg  
         
   widgets:
     # show the kubernetes widget, with the cluster summary and individual nodes
@@ -86,10 +89,10 @@ config:
 
     background:
       image: https://cdnb.artstation.com/p/assets/images/images/006/897/659/large/mikael-gustafsson-wallpaper-mikael-gustafsson.jpg
-      blur: sm # sm, md, xl... see https://tailwindcss.com/docs/backdrop-blur
-      saturate: 100 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
-      brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
-      opacity: 100 # 0-100
+      blur: sm 
+      saturate: 100 
+      brightness: 50
+      opacity: 100
 
     theme: dark
     color: slate
@@ -113,6 +116,14 @@ config:
         #style: row
         #columns: 5
 
+persistence:
+  icons:
+    enabled: true
+    type: custom
+    mountPath: /app/public/icons
+    volumeSpec:
+      configMap:
+        name: homepage-icons
 
 # The service account is necessary to allow discovery of other services
 serviceAccount:
