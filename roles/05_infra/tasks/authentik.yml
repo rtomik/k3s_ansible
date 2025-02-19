@@ -167,11 +167,11 @@
             ],
             "redirect_uris": [
               {
-                "matching_mode": "regex",
+                "matching_mode": "exact",
                 "url": "https://argocd.{{ domain }}/api/dex/callback"
               },
               {
-                "matching_mode": "regex",
+                "matching_mode": "exact",
                 "url": "http://localhost:8085/auth/callback"
               }
             ],
@@ -468,7 +468,7 @@
             ],
             "redirect_uris": [
               {
-                "matching_mode": "regex",
+                "matching_mode": "exact",
                 "url": "https://gitlab.{{ domain }}/users/auth/openid_connect/callback"
               }
             ],
@@ -599,7 +599,7 @@
                     client_auth_method: query
                     uid_field: preferred_username
                     send_scope_to_token_endpoint: true
-                    pkce: true
+                    pkce: false
                     client_options:
                       identifier: "{{ gitlab_client_id }}"
                       secret: "{{ gitlab_client_secret }}"

@@ -20,23 +20,23 @@ global:
       secretName: "{{ tls_secret_name }}"
   edition: ce
   
-  appConfig:
-    omniauth:
-      enabled: true
-      autoSignInWithProvider: 'openid_connect'
-      syncEmailFromProvider: ['openid_connect']
-      syncProfileFromProvider: ['openid_connect']
-      syncProfileAttributes: ['email']
-      allowSingleSignOn: ['openid_connect']
-      blockAutoCreatedUsers: false
-      autoLinkLdapUser: false
-      autoLinkSamlUser: true
-      autoLinkUser: ['openid_connect']
-      externalProviders: []
-      allowBypassTwoFactor: []
-      providers:
-        - secret: gitlab-authentik-oauth2
-          key: provider
+  # appConfig:
+  #   omniauth:
+  #     enabled: true
+  #     autoSignInWithProvider: 'openid_connect'
+  #     syncEmailFromProvider: ['openid_connect']
+  #     syncProfileFromProvider: ['openid_connect']
+  #     syncProfileAttributes: ['email']
+  #     allowSingleSignOn: ['openid_connect']
+  #     blockAutoCreatedUsers: false
+  #     autoLinkLdapUser: false
+  #     autoLinkSamlUser: true
+  #     autoLinkUser: ['openid_connect']
+  #     externalProviders: []
+  #     allowBypassTwoFactor: []
+  #     providers:
+  #       - secret: gitlab-authentik-oauth2
+  #         key: provider
 
 gitlab:
   webservice:

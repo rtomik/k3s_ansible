@@ -14,13 +14,24 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 - Rancher (Kubernetes Management Platform)
 - Authentik (SSO)
 - Prometheus (Monitoring)
-- Grafana
+- Grafana (Visualization)
+- Loki (Log Aggregation)
 - GitLab
 - Homepage
   
 ## Features
 
-
+- Automated cluster deployment
+- Integrated monitoring and logging stack
+- Single Sign-On (SSO) integration
+- Persistent storage with Longhorn
+- Log aggregation with Loki
+- Customizable Grafana dashboards for:
+  - Application logs
+  - Error monitoring
+  - System metrics
+  - Storage metrics
+  
 ## Requirements
 
 - Linux system/vm or WSL on Windows where you can clone the repo. With Ansible and kubectl
@@ -84,56 +95,91 @@ After successful deployment:
 1. Access Rancher at `https://rancher.<your-domain>`
 2. Access ArgoCD at `https://argocd.<your-domain>`
 3. Access Grafana at `https://grafana.<your-domain>`
+   - View application logs dashboard
+   - Monitor system metrics
+   - Track error rates
 4. Use Authentik for Single Sign-On (SSO) at `https://auth.<your-domain>`
 5. Access Prometheus at `https://prometheus.<your-domain>`
 
 ## Diagram
 
 ``` mermaid
-graph TD
-    Internet((Internet)) --> Firewall
-    Firewall --> VPS[VPS with Traefik]
-    VPS <--> |Tailscale| K3s
-    subgraph "Physical Infrastructure"
-        MiniPC1[Mini PC 1]
-        MiniPC2[Mini PC 2]
-        MiniPC3[Mini PC 3]
+flowchart TD
+    subgraph ExternalAccess["External Access"]
+        Internet((Internet))
+        Internet --> |Port 41641| TailscaleMesh[Tailscale Mesh Network]
     end
-    subgraph "Kubernetes Cluster"
-        MiniPC1 & MiniPC2 & MiniPC3 --> K3s
-        K3s --> ArgoCD
+
+    subgraph Infrastructure["Kubernetes Infrastructure"]
+        subgraph Physical["Physical Infrastructure"]
+            Node1[Node 1]
+            Node2[Node 2]
+            Node3[Node 3]
+            TailscaleMesh --> |Tailscale| Node1
+            TailscaleMesh --> |Tailscale| Node2
+            TailscaleMesh --> |Tailscale| Node3
+        end
+
+        subgraph Cluster["Kubernetes Cluster"]
+            subgraph Storage["Storage Layer"]
+                Longhorn[Longhorn Storage]
+                Longhorn --> |Volume 1| Node1
+                Longhorn --> |Volume 2| Node2
+                Longhorn --> |Volume 3| Node3
+            end
+
+            subgraph Apps["Applications"]
+                Homepage[Homepage]
+                GitLab[GitLab]
+                OtherApps[Other Apps]
+            end
+
+            subgraph Observe["Observability Stack"]
+                subgraph LogCol["Log Collection"]
+                    Promtail --> Loki
+                end
+                subgraph MetCol["Metrics Collection"]
+                    ServiceMonitor --> Prometheus
+                end
+                Loki --> Grafana
+                Prometheus --> Grafana
+            end
+
+            subgraph Core["Core Services"]
+                K3s[K3s Control Plane]
+                Authentik
+                ArgoCD
+            end
+        end
+
+        GitRepo[(Git Repository)] --- ArgoCD
+
+        %% Connections
+        Node1 & Node2 & Node3 --> K3s
         K3s --> Authentik
-        K3s --> Apps
-        ArgoCD --> GitRepo[(Git Repository)]
-        ArgoCD --> Apps
-        subgraph "Monitoring"
-            style Monitoring fill:#ffffff,stroke:#333,stroke-width:2px,color:#333
-            Prometheus --> Grafana
-        end
-        subgraph "Logging"
-            Graylog
-        end
-        subgraph "Apps"
-            Homepage
-            Immich
-            OtherApps[Other Apps]
-        end
-        Apps --> Prometheus
-        Apps --> Graylog
-        Authentik --> Apps
         Authentik --> ArgoCD
         Authentik --> Grafana
-        Velero --> HetznerBackup[(Hetzner Backup)]
+        Apps --> Promtail
+        Apps --> ServiceMonitor
     end
-    classDef default fill:#f0f0f0,stroke:#333,stroke-width:2px,color:#333;
-    classDef k8s fill:#326ce5,stroke:#333,stroke-width:2px,color:#fff;
-    classDef ext fill:#ffd966,stroke:#333,stroke-width:2px;
-    classDef hardware fill:#d5e8d4,stroke:#82b366,stroke-width:2px;
-    classDef vps fill:#ff9999,stroke:#333,stroke-width:2px;
-    class K3s,K3sTraefik,ArgoCD,Authentik,Apps,Prometheus,Grafana,Graylog,K8sCluster,Velero k8s;
-    class GitRepo,HetznerBackup ext;
-    class MiniPC1,MiniPC2,MiniPC3 hardware;
-    class VPS vps;
+
+    %% Styling
+    classDef external fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef infrastructure fill:#beb,stroke:#333,stroke-width:2px;
+    classDef core fill:#58f,stroke:#333,stroke-width:2px;
+    classDef observability fill:#9cf,stroke:#333,stroke-width:2px;
+    classDef storage fill:#fc9,stroke:#333,stroke-width:2px;
+    classDef apps fill:#333,stroke:#fff,stroke-width:2px,color:#fff;
+    
+    class Internet,TailscaleMesh external;
+    class Node1,Node2,Node3 infrastructure;
+    class K3s,Authentik,ArgoCD core;
+    class Prometheus,Grafana,Loki,Promtail,ServiceMonitor observability;
+    class Longhorn storage;
+    class Homepage,GitLab,OtherApps apps;
+
+    %% Layout
+    direction TB
 ```
 
 ## License

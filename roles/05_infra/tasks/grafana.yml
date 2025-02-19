@@ -67,6 +67,8 @@
         k8s-nodes.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-nodes.json') | string }}"
         k8s-pods.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-pods.json') | string }}"
         longhorn.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/longhorn.json') | string }}"
+        logs-app.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-app.json') | string }}"
+        logs-overview.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-overview.json') | string }}"        
   when: deploy_grafana | bool
 
 - name: Check if Grafana is already installed

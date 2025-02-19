@@ -85,13 +85,14 @@ datasources:
         queryTimeout: 30s
     - name: Loki
       type: loki
-      url: http://loki:3100/
+      url: http://loki:3100
       access: proxy
       isDefault: false
       jsonData:
-        timeInterval: 30s
-        queryTimeout: 30s
-      secureJsonData:
-        httpHeaderValue1: "configured"
-      jsonData:
-        httpHeaderName1: "X-Scope-OrgID"
+        maxLines: 1000
+        timeout: 30
+        derivedFields:
+          - datasourceUid: Prometheus
+            matcherRegex: "(?:trace_id|traceid)=(\\w+)"
+            name: TraceID
+            url: $${__value.raw}
