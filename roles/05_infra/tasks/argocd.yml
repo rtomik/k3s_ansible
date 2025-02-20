@@ -23,9 +23,9 @@
     chart_ref: argo/argo-cd
     chart_version: "{{ argocd_version }}"
     release_namespace: argocd
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-argocd.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 10m
   register: argocd_deploy
   when: deploy_argocd | bool

@@ -19,12 +19,12 @@
 
 - name: Deploy or upgrade audiobookshelf
   kubernetes.core.helm:
-    name: audiobookshelf 
+    name: audiobookshelf
     chart_ref: audiobookshelf/audiobookshelf
     release_namespace: audiobookshelf
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-audiobookshelf.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 5m
   register: audiobookshelf_deploy
   when: deploy_audiobookshelf | bool

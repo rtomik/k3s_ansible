@@ -15,10 +15,10 @@
     chart_ref: rancher-stable/rancher
     chart_version: "{{ rancher_version }}"
     release_namespace: cattle-system
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-rancher.yml.j2') | from_yaml }}"
   when: rancher_check.resources | length == 0 and deploy_rancher | bool
-  
+
 - name: Wait for Rancher to be ready
   kubernetes.core.k8s_info:
     kind: Pod

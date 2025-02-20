@@ -21,8 +21,8 @@
     chart_ref: longhorn/longhorn
     chart_version: "{{ longhorn_version }}"
     release_namespace: longhorn-system
-    create_namespace: yes
-    wait: yes
+    create_namespace: true
+    wait: true
     wait_timeout: 10m
     values: "{{ lookup('template', 'values-longhorn.yml.j2') | from_yaml }}"
   when: >
@@ -97,16 +97,16 @@
         name: longhorn-prometheus-servicemonitor
         namespace: longhorn-system
         labels:
-            name: longhorn-prometheus-servicemonitor
+          name: longhorn-prometheus-servicemonitor
       spec:
         selector:
           matchLabels:
             app: longhorn-manager
         namespaceSelector:
           matchNames:
-          - longhorn-system
+            - longhorn-system
         endpoints:
-        - port: manager
+          - port: manager
 
 - name: Create alertrules for longhorn
   kubernetes.core.k8s:

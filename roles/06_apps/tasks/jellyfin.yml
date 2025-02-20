@@ -23,9 +23,9 @@
     chart_ref: jellyfin/jellyfin
     chart_version: "{{ jellyfin_version }}"
     release_namespace: "jellyfin"
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-jellyfin.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 1m
   when: >
     deploy_jellyfin | bool and
@@ -50,6 +50,6 @@
   when: deploy_jellyfin | bool and jellyfin_deploy is changed
 
 - name: Display Jellyfin URL
-  debug:
+  ansible.builtin.debug:
     msg: "Jellyfin is now available at https://jellyfin.{{ domain }}"
   when: deploy_jellyfin | bool and jellyfin_deploy is changed

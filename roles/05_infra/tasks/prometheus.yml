@@ -21,9 +21,9 @@
     chart_ref: prometheus-community/kube-prometheus-stack
     chart_version: "{{ prometheus_stack_version }}"
     release_namespace: monitoring
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-prometheus.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 5m
   register: prometheus_deploy
 
@@ -54,8 +54,6 @@
                       name: prometheus-kube-prometheus-prometheus
                       port:
                         number: 9090
-
-
 
 - name: Wait for Prometheus to be ready
   kubernetes.core.k8s_info:

@@ -12,9 +12,9 @@
   kubernetes.core.helm:
     name: metallb
     chart_ref: metallb/metallb
-    chart_version: "{{ metallb_version }}" 
+    chart_version: "{{ metallb_version }}"
     release_namespace: metallb-system
-    create_namespace: yes
+    create_namespace: true
   when: metallb_check.resources | length == 0
 
 - name: Wait for MetalLB to be ready
@@ -39,7 +39,7 @@
         namespace: metallb-system
       spec:
         addresses:
-        - "{{ tailscale_ip_range }}"
+          - "{{ tailscale_ip_range }}"
 
 - name: Create MetalLB L2Advertisement
   kubernetes.core.k8s:
@@ -51,4 +51,4 @@
         namespace: metallb-system
       spec:
         ipAddressPools:
-        - first-pool
+          - first-pool

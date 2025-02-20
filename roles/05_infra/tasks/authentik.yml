@@ -436,7 +436,7 @@
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: check_provider_response
       changed_when: false
       failed_when: check_provider_response.status not in [200, 404]
@@ -445,7 +445,7 @@
     - name: Set provider exists fact
       set_fact:
         provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-      when: deploy_authentik | bool and deploy_gitlab | bool 
+      when: deploy_authentik | bool and deploy_gitlab | bool
 
     - name: Create OAuth2 Provider for GitLab
       uri:
@@ -488,7 +488,7 @@
         - not provider_exists
 
     - name: Save client credentials
-      set_fact:
+      ansible.builtin.set_fact:
         gitlab_client_id: >-
           {{
             (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
