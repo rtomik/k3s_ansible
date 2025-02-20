@@ -1,11 +1,11 @@
 - name: Create a user {{ user }}
-  user:
+  ansible.builtin.user:
     name: "{{ user }}"
-    create_home: yes
+    create_home: true
     shell: /bin/bash
     state: present
     groups: sudo
-    generate_ssh_key: yes
+    generate_ssh_key: true
     ssh_key_type: rsa
 
 - name: Ensure correct ownership for ansible home directory
@@ -15,9 +15,9 @@
     group: "{{ user }}"
     mode: '0755'
     recurse: true
-    
-- name: Allow passwordless sudo for {{ user }} 
-  lineinfile:
+
+- name: Allow passwordless sudo for {{ user }}
+  ansible.builtin.lineinfile:
     path: /etc/sudoers
     state: present
     regexp: '^{{ user }}'
@@ -25,7 +25,7 @@
     validate: '/usr/sbin/visudo -cf %s'
 
 - name: Set authorized key for user {{ user }} copying it from current user
-  authorized_key:
+  ansible.builtin.authorized_key:
     user: "{{ user }}"
     state: present
     key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"

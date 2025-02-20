@@ -23,9 +23,9 @@
     chart_ref: authentik/authentik
     chart_version: "{{ authentik_version }}"
     release_namespace: authentik
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 5m
   register: authentik_deploy
   when: deploy_authentik | bool
@@ -47,20 +47,20 @@
 - name: Get required variables from authentik to create application
   block:
     - name: Get flow identifiers via Authentik API
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/flows/instances/"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: flow_instances_response
       changed_when: false
       failed_when: flow_instances_response.status not in [200]
       when: deploy_authentik | bool
 
     - name: Extract relevant flow IDs
-      set_fact:
+      ansible.builtin.set_fact:
         default_authorization_flow_id: >-
           {{
             (flow_instances_response.json.results | selectattr('slug', 'equalto', 'default-provider-authorization-implicit-consent') | list | first).pk
@@ -75,15 +75,15 @@
         - deploy_authentik | bool
 
     - name: Get OAuth2 scope mappings
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/propertymappings/provider/scope/"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
           Accept: "application/json"
-        return_content: yes
-        validate_certs: yes
+        return_content: true
+        validate_certs: true
         status_code: [200]
       register: scope_mappings_response
       until: scope_mappings_response.status == 200
@@ -96,7 +96,7 @@
       when: deploy_authentik | bool
 
     - name: Define required OAuth2 scopes
-      set_fact:
+      ansible.builtin.set_fact:
         required_scopes:
           email: "goauthentik.io/providers/oauth2/scope-email"
           openid: "goauthentik.io/providers/oauth2/scope-openid"
@@ -104,7 +104,7 @@
       when: deploy_authentik | bool
 
     - name: Verify required OAuth2 scope mappings exist
-      assert:
+      ansible.builtin.assert:
         that:
           - required_scopes.values() | difference(scope_mappings_response.json.results | map(attribute='managed') | list) | length == 0
         fail_msg: "One or more required OAuth2 scope mappings are missing in Authentik"
@@ -112,7 +112,7 @@
       when: deploy_authentik | bool
 
     - name: Extract UUIDs for required OAuth2 scopes
-      set_fact:
+      ansible.builtin.set_fact:
         scope_uuids: "{{ scope_uuids | default({}) | combine({ item.key: (scope_mappings_response.json.results | selectattr('managed', 'equalto', item.value) | map(attribute='pk') | first ) }) }}"
       loop: "{{ required_scopes | dict2items }}"
       loop_control:
@@ -120,7 +120,7 @@
       when: deploy_authentik | bool
 
     - name: Set individual scope UUID facts
-      set_fact:
+      ansible.builtin.set_fact:
         email_scope_uuid: "{{ scope_uuids.email }}"
         openid_scope_uuid: "{{ scope_uuids.openid }}"
         profile_scope_uuid: "{{ scope_uuids.profile }}"
@@ -129,25 +129,25 @@
 - name: Authentik ArgoCD
   block:
     - name: Check if OAuth2 Provider for ArgoCD exists
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20ArgoCD"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: check_provider_response
       changed_when: false
       failed_when: check_provider_response.status not in [200, 404]
       when: deploy_authentik | bool
 
     - name: Set provider exists fact
-      set_fact:
+      ansible.builtin.set_fact:
         provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
       when: deploy_authentik | bool
 
     - name: Create OAuth2 Provider for ArgoCD
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
         method: POST
         headers:
@@ -190,7 +190,7 @@
         - not provider_exists
 
     - name: Save client credentials
-      set_fact:
+      ansible.builtin.set_fact:
         argocd_client_id: >-
           {{
             (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
@@ -239,25 +239,25 @@
           when: deploy_authentik | bool
 
     - name: Check if ArgoCD application exists in Authentik
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=argocd"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: check_app_response
       changed_when: false
       failed_when: check_app_response.status not in [200, 404]
       when: deploy_authentik | bool
 
     - name: Set application exists fact
-      set_fact:
+      ansible.builtin.set_fact:
         app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
       when: deploy_authentik | bool
 
     - name: Create an ArgoCD application in Authentik
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/"
         method: POST
         headers:
@@ -282,25 +282,25 @@
 - name: Authentik Grafana
   block:
     - name: Check if OAuth2 Provider for Grafana exists
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20Grafana"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: check_provider_response
       changed_when: false
       failed_when: check_provider_response.status not in [200, 404]
-      when: deploy_authentik | bool and deploy_grafana | bool 
+      when: deploy_authentik | bool and deploy_grafana | bool
 
     - name: Set provider exists fact
-      set_fact:
+      ansible.builtin.set_fact:
         provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-      when: deploy_authentik | bool and deploy_grafana | bool 
+      when: deploy_authentik | bool and deploy_grafana | bool
 
     - name: Create OAuth2 Provider for Grafana
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
         method: POST
         headers:
@@ -338,7 +338,7 @@
         - deploy_authentik | bool and deploy_grafana | bool and not provider_exists
 
     - name: Save client credentials
-      set_fact:
+      ansible.builtin.set_fact:
         grafana_client_id: >-
           {{
             (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
@@ -387,25 +387,25 @@
           when: deploy_authentik | bool
 
     - name: Check if Grafana application exists in Authentik
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=grafana"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: check_app_response
       changed_when: false
       failed_when: check_app_response.status not in [200, 404]
       when: deploy_authentik | bool
 
     - name: Set application exists fact
-      set_fact:
+      ansible.builtin.set_fact:
         app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
       when: deploy_authentik | bool
 
     - name: Create an Grafana application in Authentik
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/"
         method: POST
         headers:
@@ -430,7 +430,7 @@
 - name: Authentik GitLab
   block:
     - name: Check if OAuth2 Provider for GitLab exists
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20GitLab"
         method: GET
         headers:
@@ -440,15 +440,15 @@
       register: check_provider_response
       changed_when: false
       failed_when: check_provider_response.status not in [200, 404]
-      when: deploy_authentik | bool and deploy_gitlab | bool 
+      when: deploy_authentik | bool and deploy_gitlab | bool
 
     - name: Set provider exists fact
-      set_fact:
+      ansible.builtin.set_fact:
         provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
       when: deploy_authentik | bool and deploy_gitlab | bool
 
     - name: Create OAuth2 Provider for GitLab
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
         method: POST
         headers:
@@ -504,28 +504,28 @@
             (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
               else create_provider_response.json.pk)
           }}
-      when: deploy_authentik | bool and deploy_gitlab | bool 
+      when: deploy_authentik | bool and deploy_gitlab | bool
 
     - name: Check if GitLab application exists in Authentik
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=gitlab"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
           Content-Type: "application/json"
-        return_content: yes
+        return_content: true
       register: check_app_response
       changed_when: false
       failed_when: check_app_response.status not in [200, 404]
-      when: deploy_authentik | bool and deploy_gitlab | bool 
+      when: deploy_authentik | bool and deploy_gitlab | bool
 
     - name: Set application exists fact
-      set_fact:
+      ansible.builtin.set_fact:
         app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
-      when: deploy_authentik | bool and deploy_gitlab | bool 
+      when: deploy_authentik | bool and deploy_gitlab | bool
 
     - name: Create an GitLab application in Authentik
-      uri:
+      ansible.builtin.uri:
         url: "https://authentik.{{ domain }}/api/v3/core/applications/"
         method: POST
         headers:
@@ -546,8 +546,8 @@
       when:
         - deploy_authentik | bool
         - not app_exists
-        - deploy_gitlab | bool 
-  
+        - deploy_gitlab | bool
+
     - name: Add client and client secret to secret in GitLab namespace
       block:
         - name: Check if GitLab namespace exists
@@ -556,7 +556,7 @@
             name: gitlab
           register: namespace_info
           ignore_errors: true
-          when: deploy_authentik | bool and deploy_gitlab | bool 
+          when: deploy_authentik | bool and deploy_gitlab | bool
         - name: Create GitLab namespace if it does not exist
           kubernetes.core.k8s:
             definition:
@@ -576,7 +576,7 @@
               data:
                 authentik_client_id: "{{ gitlab_client_id | b64encode }}"
                 authentik_client_secret: "{{ gitlab_client_secret | b64encode }}"
-          when: deploy_authentik | bool and deploy_gitlab | bool 
+          when: deploy_authentik | bool and deploy_gitlab | bool
         - name: Add GitLab OAuth configuration secret
           kubernetes.core.k8s:
             definition:
@@ -604,4 +604,4 @@
                       identifier: "{{ gitlab_client_id }}"
                       secret: "{{ gitlab_client_secret }}"
                       redirect_uri: https://gitlab.{{ domain }}/users/auth/openid_connect/callback
-          when: deploy_authentik | bool and deploy_gitlab | bool                       
+          when: deploy_authentik | bool and deploy_gitlab | bool

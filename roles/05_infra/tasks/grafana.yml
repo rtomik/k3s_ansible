@@ -22,7 +22,7 @@
 
 - name: Create dashboard directory
   delegate_to: localhost
-  file:
+  ansible.builtin.file:
     path: "{{ playbook_dir }}/../roles/05_infra/grafana/files/dashboards"
     state: directory
     mode: '0755'
@@ -30,7 +30,7 @@
 
 - name: Download K8s dashboards
   delegate_to: localhost
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ item.url }}"
     dest: "{{ playbook_dir }}/../roles/05_infra/grafana/files/dashboards/{{ item.name }}.json"
     mode: '0644'
@@ -68,7 +68,7 @@
         k8s-pods.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/k8s-pods.json') | string }}"
         longhorn.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/longhorn.json') | string }}"
         logs-app.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-app.json') | string }}"
-        logs-overview.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-overview.json') | string }}"        
+        logs-overview.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-overview.json') | string }}"
   when: deploy_grafana | bool
 
 - name: Check if Grafana is already installed
@@ -95,9 +95,9 @@
     chart_ref: grafana/grafana
     chart_version: "{{ grafana_version }}"
     release_namespace: monitoring
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-grafana.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 5m
   register: grafana_deploy
   when: deploy_grafana | bool

@@ -14,7 +14,7 @@
     chart_ref: jetstack/cert-manager
     chart_version: "{{ certmanager_version }}"
     release_namespace: cert-manager
-    create_namespace: yes
+    create_namespace: true
     values:
       installCRDs: true
       replicaCount: 1
@@ -26,7 +26,7 @@
         nameservers:
           - 1.1.1.1
           - 9.9.9.9
-  #when: cert_manager_check.resources | length == 0
+  when: cert_manager_check.resources | length == 0
 
 - name: Wait for cert-manager to be ready
   kubernetes.core.k8s_info:
@@ -39,9 +39,9 @@
   retries: 10
   delay: 30
 
-- name: Deploy reflector 
+- name: Deploy reflector
   kubernetes.core.helm:
-    name: reflector 
+    name: reflector
     chart_ref: emberstack/reflector
     chart_version: "{{ reflector_version }}"
     release_namespace: cert-manager
@@ -60,7 +60,7 @@
         api-token: "{{ cloudflare_api_token | b64encode }}"
   when: enable_cloudflare | bool
 
-- name: Create issuer 
+- name: Create issuer
   kubernetes.core.k8s:
     definition:
       apiVersion: cert-manager.io/v1
@@ -81,7 +81,7 @@
                     key: api-token
               selector:
                 dnsZones:
-                  - "{{ domain }}"              
+                  - "{{ domain }}"
   when: enable_cloudflare | bool
 
 - name: Create certificate
@@ -96,11 +96,11 @@
         secretName: "{{ tls_secret_name }}"
         issuerRef:
           name: cloudflare-issuer
-          kind: ClusterIssuer       
-        commonName: "*.{{ domain }}"           
+          kind: ClusterIssuer
+        commonName: "*.{{ domain }}"
         dnsNames:
-        - "{{ domain }}"
-        - "*.{{ domain }}"
+          - "{{ domain }}"
+          - "*.{{ domain }}"
         secretTemplate:
           annotations:
             reflector.v1.k8s.emberstack.com/reflection-allowed: "true"

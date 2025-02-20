@@ -46,14 +46,14 @@ dashboardProviders:
   dashboardproviders.yaml:
     apiVersion: 1
     providers:
-    - name: 'kubernetes'
+    - name: 'default'
       orgId: 1
-      folder: 'Kubernetes'
+      folder: ''
       type: file
       disableDeletion: false
       editable: true
       options:
-        path: /var/lib/grafana/dashboards/kubernetes
+        path: /var/lib/grafana/dashboards
 
 persistence:
   enabled: true

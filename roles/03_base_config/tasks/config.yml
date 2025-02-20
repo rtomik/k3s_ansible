@@ -2,7 +2,7 @@
 # Packages 
 
 - name: Update apt cache
-  apt:
+  ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: 3600
 
@@ -28,11 +28,11 @@
 # Time
 
 - name: Set timezone
-  timezone:
+  community.general.timezone:
     name: "{{ timezone }}"
 
 - name: Install chrony
-  apt:
+  ansible.builtin.apt:
     name: chrony
     state: present
 
@@ -62,28 +62,28 @@
 # SSH
 
 - name: Disable password authentication
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PasswordAuthentication'
     line: 'PasswordAuthentication no'
   notify: Restart ssh
 
 - name: Disable root login
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PermitRootLogin'
     line: 'PermitRootLogin no'
   notify: Restart ssh
 
 - name: Set SSH idle timeout
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?ClientAliveInterval'
     line: 'ClientAliveInterval 300'
   notify: Restart ssh
 
 - name: Set SSH client alive count max
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?ClientAliveCountMax'
     line: 'ClientAliveCountMax 3'

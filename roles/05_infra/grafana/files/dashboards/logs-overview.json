@@ -51,7 +51,7 @@
         "showLabels": false,
         "showTime": true,
         "sortOrder": "Descending",
-        "wrapLogMessage": false
+        "wrapLogMessage": true
       },
       "pluginVersion": "11.4.0",
       "targets": [
@@ -61,7 +61,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "{namespace=~\"$namespace\"} |~ \"(?i)error|exception|fail\" \r\n  != \"level=info\"\r\n  != \"caller=metrics.go\"",
+          "expr": "{namespace=~\"$namespace\"} |~ \"(?i)error|exception|fail|fatal\" \r\n  != \"level=info\"\r\n  != \"caller=metrics.go\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -69,6 +69,85 @@
       "title": "Recent Error Logs",
       "transparent": true,
       "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "{namespace=.*}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.namespace}"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({namespace=~\".+\"} |~ \"(?i)error|exception|fail\" != \"level=info\" [5m])) by (namespace)",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Errors by Namespace",
+      "transparent": true,
+      "type": "gauge"
     },
     {
       "datasource": {
@@ -128,12 +207,25 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "{app=.*}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.app}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
+        "w": 10,
+        "x": 7,
         "y": 8
       },
       "id": 1,
@@ -185,21 +277,35 @@
           },
           "mappings": []
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "{pod=.*}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.pod}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 7,
+        "x": 17,
         "y": 8
       },
       "id": 4,
       "options": {
         "displayLabels": [],
         "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": []
         },
         "pieType": "pie",
         "reduceOptions": {
@@ -230,72 +336,6 @@
       "title": "Error Distribution by Pod",
       "transparent": true,
       "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "P8E80F9AEF21F6940"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 16
-      },
-      "id": 3,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          },
-          "editorMode": "code",
-          "expr": "sum(count_over_time({namespace=~\".+\"} |~ \"(?i)error|exception|fail\" != \"level=info\" [5m])) by (namespace)",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Errors by Namespace",
-      "transparent": true,
-      "type": "gauge"
     }
   ],
   "preload": false,
@@ -326,13 +366,13 @@
     ]
   },
   "time": {
-    "from": "now-12h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Logs / Error Overview",
   "uid": "error-logs",
-  "version": 17,
+  "version": 22,
   "weekStart": ""
 }

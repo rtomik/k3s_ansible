@@ -23,7 +23,7 @@
     chart_ref: gitlab/gitlab
     chart_version: "{{ gitlab_version }}"
     release_namespace: gitlab
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-gitlab.yml.j2') | from_yaml }}"
   when: deploy_gitlab | bool
   register: gitlab_deploy
