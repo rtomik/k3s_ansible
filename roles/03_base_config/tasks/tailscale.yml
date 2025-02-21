@@ -14,7 +14,7 @@
 
     - name: Update apt cache
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
   become: true
 
 - name: Install Tailscale
@@ -27,7 +27,7 @@
   ansible.builtin.systemd:
     name: tailscaled
     state: started
-    enabled: yes
+    enabled: true
   become: true
 
 - name: Connect to Tailscale network

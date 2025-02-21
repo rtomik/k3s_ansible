@@ -24,9 +24,8 @@
     line: '{{ user }} ALL=(ALL) NOPASSWD:ALL'
     validate: '/usr/sbin/visudo -cf %s'
 
-- name: Set authorized key for user {{ user }} copying it from current user
-  ansible.builtin.authorized_key:
+- name: Set authorized key for user {{ user }}
+  ansible.posix.authorized_key:
     user: "{{ user }}"
     state: present
     key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-

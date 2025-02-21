@@ -17,7 +17,7 @@
     - name: Try to connect as ansible user
       wait_for_connection:
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       vars:
         ansible_user: "{{ user }}"
       register: connection_test

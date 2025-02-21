@@ -21,9 +21,9 @@
     chart_ref: traefik/traefik
     chart_version: "{{ traefik_version }}"
     release_namespace: traefik
-    create_namespace: yes
+    create_namespace: true
     values: "{{ lookup('template', 'values-traefik.yml.j2') | from_yaml }}"
-    wait: yes
+    wait: true
     wait_timeout: 5m
   register: traefik_deploy
 

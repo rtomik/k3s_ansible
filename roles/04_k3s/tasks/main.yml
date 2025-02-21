@@ -45,7 +45,7 @@
 - name: Ensure k3s service is enabled and started
   systemd:
     name: k3s
-    enabled: yes
+    enabled: true
     state: started
 
 - name: Get kubeconfig from primary node
@@ -80,11 +80,11 @@
   copy:
     src: /etc/rancher/k3s/k3s.yaml
     dest: "~/.kube/config"
-    remote_src: yes
+    remote_src: true
     mode: '0600'
 
 - name: Set KUBECONFIG environment variable
   lineinfile:
     path: ~/.bashrc
     line: 'export KUBECONFIG=~/.kube/config'
-    create: yes
+    create: true

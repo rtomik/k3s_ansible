@@ -3,12 +3,12 @@
 
 - name: Update apt cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Upgrade all packages
   apt:
-    upgrade: yes
+    upgrade: true
   when: perform_full_upgrade | default(false)
 
 - name: Install required packages
@@ -47,7 +47,7 @@
   systemd:
     name: chronyd
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Allow NTP through UFW
   ufw:
