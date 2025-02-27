@@ -28,27 +28,6 @@
     mode: '0755'
   when: deploy_grafana | bool
 
-- name: Download K8s dashboards
-  delegate_to: localhost
-  ansible.builtin.get_url:
-    url: "{{ item.url }}"
-    dest: "{{ playbook_dir }}/../roles/05_infra/grafana/files/dashboards/{{ item.name }}.json"
-    mode: '0644'
-  loop:
-    - name: "k8s-api-monitoring"
-      url: "https://grafana.com/api/dashboards/15761/revisions/18/download"
-    - name: "k8s-global"
-      url: "https://grafana.com/api/dashboards/15757/revisions/42/download"
-    - name: "k8s-namespaces"
-      url: "https://grafana.com/api/dashboards/15758/revisions/41/download"
-    - name: "k8s-nodes"
-      url: "https://grafana.com/api/dashboards/15759/revisions/32/download"
-    - name: "k8s-pods"
-      url: "https://grafana.com/api/dashboards/15760/revisions/34/download"
-    - name: "longhorn"
-      url: "https://grafana.com/api/dashboards/16888/revisions/9/download"
-  when: deploy_grafana | bool
-
 - name: Create Grafana dashboards ConfigMap
   kubernetes.core.k8s:
     state: present
