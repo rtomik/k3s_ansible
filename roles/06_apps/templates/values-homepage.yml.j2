@@ -1,3 +1,5 @@
+---
+# Default values: https://github.com/jameswynn/helm-charts/blob/main/charts/homepage/values.yaml
 config:
   bookmarks:
     - Developer:
@@ -9,22 +11,30 @@ config:
               href: https://github.com/homarr-labs/dashboard-icons/tree/main/svg
   services:
     - Infrastructure:
+{% if deploy_rancher %}
       - Rancher:
           href: https://rancher.{{ domain }}/
           description: Kubernetes Management
           icon: /icons/rancher.svg
+{% endif %}
+{% if deploy_argocd %}
       - ArgoCD:
           href: https://argocd.{{ domain }}
           description: GitOps CD tool for Kubernetes
           icon: /icons/argo.svg
+{% endif %}
+{% if deploy_authentik %}
       - Authentik:
           href: https://authentik.{{ domain }}/
           description: SSO Provider
           icon: /icons/authentik.svg
+{% endif %}
+{% if deploy_gitlab %}
       - GitLab:
           href: https://gitlab.{{ domain }}/
           description: Git Repository Manager
           icon: /icons/gitlab.svg
+{% endif %}
       - Longhorn:
           href: https://longhorn.{{ domain }}/
           description: Cloud Native Storage
@@ -35,32 +45,36 @@ config:
           href: https://prometheus.{{ domain }}/
           description: Monitoring System
           icon: /icons/prometheus.svg
+{% if deploy_grafana %}
       - Grafana:
           href: https://grafana.{{ domain }}/
           description: Analytics & Monitoring
           icon: /icons/grafana.svg
+{% endif %}
            
     - Media:
+{% if deploy_jellyfin %}
       - Jellyfin:
           href: https://jellyfin.{{ domain }}
           description: Media System
           icon: /icons/jellyfin.svg
-
+{% endif %}
+{% if deploy_audiobookshelf %}
       - Audiobookshelf:
           href: https://audiobookshelf.{{ domain }}
           description: Self-hosted audiobook and podcast server
           icon: /icons/bookstack.svg
-          widget:
-              type: audiobookshelf
-              url: https://audiobookshelf.{{ domain }}
+{% endif %}
+
     - Apps:
+{% if deploy_homeassistant %}
       - Home Assistant:
           href: https://home.{{ domain }}/
           description: Home Automation
-          icon: /icons/home-assistant.svg  
+          icon: /icons/home-assistant.svg
+{% endif %}
         
   widgets:
-    # show the kubernetes widget, with the cluster summary and individual nodes
     - kubernetes:
         cluster:
           show: true
@@ -88,7 +102,7 @@ config:
     title: Homepage
 
     background:
-      image: https://cdnb.artstation.com/p/assets/images/images/006/897/659/large/mikael-gustafsson-wallpaper-mikael-gustafsson.jpg
+      image: /icons/background.jpg
       blur: sm 
       saturate: 100 
       brightness: 50
@@ -113,24 +127,21 @@ config:
       Apps:
         icon: mdi-cog-play-#FFFFFF
         header: true
-        #style: row
-        #columns: 5
+
 
 persistence:
   icons:
     enabled: true
-    type: custom
+    type: pvc
     mountPath: /app/public/icons
-    volumeSpec:
-      configMap:
-        name: homepage-icons
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    storageClass: longhorn
 
-# The service account is necessary to allow discovery of other services
 serviceAccount:
   create: true
   name: homepage
 
-# This enables the service account to access the necessary resources
 enableRbac: true
 
 ingress:

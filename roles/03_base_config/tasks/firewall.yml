@@ -1,66 +1,44 @@
 ---
 
 - name: Enable UFW
-  ufw:
+  community.general.ufw:
     state: enabled
     policy: deny
 
 - name: Allow SSH through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '22'
 
+- name: Allow NTP through UFW
+  community.general.ufw:
+    rule: allow
+    port: '123'
+    proto: udp
+
 - name: Allow HTTP through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '80'
 
 - name: Allow HTTPS through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '443'
 
-- name: Allow Kubernetes API Server through UFW
-  ufw:
+- name: Open required ports for k3s
+  community.general.ufw:
     rule: allow
-    port: '6443'
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '6443'  # Kubernetes API
+    - '2379'  # etcd client port
+    - '2380'  # etcd peer port
+    - '9345'  # k3s internal
 
 - name: Allow Kubelet through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '10250'
 
-- name: Enable fail2ban
-  service:
-    name: fail2ban
-    state: started
-    enabled: true
-
-- name: Set up automatic security updates
-  apt:
-    name: unattended-upgrades
-    state: present
-
-- name: Configure automatic security updates
-  template:
-    src: 20auto-upgrades.j2
-    dest: /etc/apt/apt.conf.d/20auto-upgrades
-    mode: '0644'
-
-- name: Disable IPv6
-  sysctl:
-    name: net.ipv6.conf.all.disable_ipv6
-    value: '1'
-    state: present
-  when: disable_ipv6 | default(false)
-
-- name: Harden sysctl settings
-  sysctl:
-    name: "{{ item.key }}"
-    value: "{{ item.value }}"
-    state: present
-  loop:
-    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
-    - { key: "net.ipv4.conf.all.send_redirects", value: "0" }
-    - { key: "net.ipv4.conf.all.accept_source_route", value: "0" }
-    - { key: "net.ipv4.conf.all.log_martians", value: "1" }

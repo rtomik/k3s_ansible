@@ -1,5 +1,5 @@
 ---
-# Packages 
+# Packages
 
 - name: Update apt cache
   ansible.builtin.apt:
@@ -44,19 +44,13 @@
   notify: Restart chrony
 
 - name: Enable and start chrony service
-  systemd:
+  ansible.builtin.systemd:
     name: chronyd
     state: started
     enabled: true
 
-- name: Allow NTP through UFW
-  ufw:
-    rule: allow
-    port: '123'
-    proto: udp
-
 - name: Ensure system clock is synchronized
-  command: chronyc makestep
+  ansible.builtin.command: chronyc makestep
   changed_when: false
 
 # SSH
@@ -88,3 +82,83 @@
     regexp: '^#?ClientAliveCountMax'
     line: 'ClientAliveCountMax 3'
   notify: Restart ssh
+
+
+- name: Enable fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+
+- name: Set up automatic security updates
+  apt:
+    name: unattended-upgrades
+    state: present
+
+- name: Configure automatic security updates
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: '0644'
+
+- name: Disable IPv6
+  sysctl:
+    name: net.ipv6.conf.all.disable_ipv6
+    value: '1'
+    state: present
+  when: disable_ipv6 | default(false)
+
+- name: Harden sysctl settings
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    - { key: "net.ipv4.conf.all.send_redirects", value: "0" }
+    - { key: "net.ipv4.conf.all.accept_source_route", value: "0" }
+    - { key: "net.ipv4.conf.all.log_martians", value: "1" }
+
+
+- name: Get current hostname
+  ansible.builtin.command: hostname
+  register: current_hostname
+  changed_when: false
+
+- name: Set hostname facts
+  ansible.builtin.set_fact:
+    hostname_needs_update: "{{ current_hostname.stdout != inventory_hostname }}"
+
+- name: Configure hostname
+  when: hostname_needs_update
+  block:
+    - name: Set system hostname (hostnamectl)
+      ansible.builtin.command: hostnamectl set-hostname {{ inventory_hostname }}
+      changed_when: true
+
+    - name: Update /etc/hostname
+      ansible.builtin.copy:
+        content: "{{ inventory_hostname }}\n"
+        dest: /etc/hostname
+        mode: '0644'
+
+    - name: Update /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^127.0.1.1"
+        line: "127.0.1.1 {{ inventory_hostname }}"
+        state: present
+
+    - name: Update hostname without reboot
+      ansible.builtin.shell: |
+        hostname {{ inventory_hostname }}
+        systemctl restart systemd-hostnamed
+        systemctl restart systemd-networkd || true
+        systemctl restart NetworkManager || true
+      changed_when: true
+
+    - name: Verify hostname change
+      ansible.builtin.command: hostname
+      register: hostname_check
+      changed_when: false
+      failed_when: hostname_check.stdout != inventory_hostname

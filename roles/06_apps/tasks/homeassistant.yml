@@ -17,6 +17,39 @@
   ignore_errors: true
   when: deploy_homeassistant | bool
 
+- name: Deploy or upgrade multus-cni
+  kubernetes.core.helm:
+    name: multus-cni
+    chart_ref: bitnami/multus-cni
+    release_namespace: home-assistant
+    create_namespace: true
+    chart_version: 2.2.7
+    wait: true
+    wait_timeout: 5m
+  register: homeassistant_deploy
+  when: deploy_homeassistant | bool
+
+- name: Create NetworkAttachmentDefinition
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: "k8s.cni.cncf.io/v1"
+      kind: NetworkAttachmentDefinition
+      metadata:
+        name: iot-network
+        namespace: home-assistant
+      spec:
+        config: '{
+                    "cniVersion": "0.3.1",
+                    "type": "macvlan",
+                    "master": "<network_interface>",
+                    "mode": "bridge",
+                    "ipam": {
+                      "type": "dhcp"
+                    }
+                  }'
+  when: deploy_homeassistant | bool
+
 - name: Deploy or upgrade Home Assistant
   kubernetes.core.helm:
     name: home-assistant
@@ -28,3 +61,4 @@
     wait_timeout: 5m
   register: homeassistant_deploy
   when: deploy_homeassistant | bool
+

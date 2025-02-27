@@ -1,8 +1,21 @@
 ---
 # default values
-# https://artifacthub.io/packages/helm/prometheus-community/prometheus?modal=values
+# https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack?modal=values
 
-server:
+grafana:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 60d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
   ingress:
     enabled: true
     ingressClassName: traefik
@@ -13,6 +26,6 @@ server:
       - prometheus.{{ domain }}
     path: /
     pathType: Prefix
-
-grafana:
-  enabled: false
+    tls:
+      hosts:
+        - prometheus.{{ domain }}    

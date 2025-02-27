@@ -15,23 +15,27 @@
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
-  become: true
 
 - name: Install Tailscale
   ansible.builtin.apt:
     name: tailscale
     state: present
-  become: true
 
 - name: Start Tailscale service
   ansible.builtin.systemd:
     name: tailscaled
     state: started
     enabled: true
-  become: true
 
 - name: Connect to Tailscale network
-  ansible.builtin.command: tailscale up --authkey={{ tailscale_key }}  --hostname=k3s-{{ inventory_hostname }}
+  ansible.builtin.command: >
+    tailscale up
+    --authkey={{ tailscale_key }}
+    --hostname=k3s-{{ inventory_hostname }}
+    --accept-dns=false
+    --accept-routes
   register: tailscale_result
   changed_when: "'Success.' in tailscale_result.stdout"
-
+  failed_when:
+    - tailscale_result.rc != 0
+    - "'already authenticated' not in tailscale_result.stderr"

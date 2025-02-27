@@ -9,12 +9,14 @@
     - { name: jameswynn, url: "https://jameswynn.github.io/helm-charts" }
     - { name: audiobookshelf, url: "https://gitlab.com/api/v4/projects/57546317/packages/helm/release" }
     - { name: pajikos, url: "http://pajikos.github.io/home-assistant-helm-chart/" }
+    - { name: bitnami, url: "https://charts.bitnami.com/bitnami" }
   tags:
     - apps
     - apps:repos
     - apps:jellyfin
     - apps:homepage
     - apps:audiobookshelf
+    - apps:homeassistant
 
 - import_tasks: jellyfin.yml
   tags:

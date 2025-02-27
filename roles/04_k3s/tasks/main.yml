@@ -1,90 +1,138 @@
----
 - name: Check if k3s is already installed
-  stat:
+  ansible.builtin.stat:
     path: /usr/local/bin/k3s
   register: k3s_binary
 
 - name: Download k3s install script
-  get_url:
+  ansible.builtin.get_url:
     url: https://get.k3s.io
     dest: /tmp/k3s_install.sh
     mode: '0755'
   when: not k3s_binary.stat.exists
 
 - name: Get Tailscale IP
-  command: tailscale ip -4
+  ansible.builtin.command: tailscale ip -4
   register: tailscale_ip
   changed_when: false
-  when: 
-    - inventory_hostname == groups['k3s_cluster'][0]
 
-- name: Install k3s server
-  command:
-    cmd: /tmp/k3s_install.sh server
+- name: Create k3s directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: '0755'
+  when: not k3s_binary.stat.exists
+
+- name: Install k3s primary server
+  ansible.builtin.command:
+    cmd: /tmp/k3s_install.sh server --cluster-init
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     K3S_TOKEN: "{{ k3s_token }}"
-    INSTALL_K3S_EXEC: "{{ k3s_server_args }}"
-  when: 
-    - not k3s_binary.stat.exists
-    - inventory_hostname == groups['k3s_cluster'][0]
-  notify: Restart k3s
-
-- name: Install k3s agent
-  command:
-    cmd: /tmp/k3s_install.sh agent
-  environment:
-    INSTALL_K3S_VERSION: "{{ k3s_version }}"
-    K3S_TOKEN: "{{ k3s_token }}"
-    K3S_URL: "https://{{ k3s_api_server }}:6443"
+    INSTALL_K3S_EXEC: "{{ k3s_server_args_primary }}"
+  args:
+    creates: /usr/local/bin/k3s
   when:
     - not k3s_binary.stat.exists
-    - inventory_hostname != groups['k3s_cluster'][0]
+    - inventory_hostname == groups['master'][0]
   notify: Restart k3s
 
-- name: Ensure k3s service is enabled and started
-  systemd:
-    name: k3s
-    enabled: true
-    state: started
-
-- name: Get kubeconfig from primary node
-  slurp:
-    src: /etc/rancher/k3s/k3s.yaml
-  register: k3s_kubeconfig
-  when: inventory_hostname == groups['k3s_cluster'][0]
-
-- name: Check if local kubeconfig exists
-  stat:
-    path: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
-  delegate_to: localhost
-  register: local_kubeconfig
-  when: inventory_hostname == groups['k3s_cluster'][0]
-
-- name: Store kubeconfig locally
-  copy:
-    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['k3s_cluster'][0]]['ansible_host']) }}"
-    dest: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
-  delegate_to: localhost
-  when: 
-    - inventory_hostname == groups['k3s_cluster'][0]
-    - not local_kubeconfig.stat.exists
-
 - name: Ensure .kube directory exists
-  file:
+  ansible.builtin.file:
     path: "~/.kube"
     state: directory
     mode: '0755'
 
-- name: Copy kubeconfig to ~/.kube/config
-  copy:
+- name: Copy kubeconfig to ~/.kube/config on primary master
+  ansible.builtin.copy:
     src: /etc/rancher/k3s/k3s.yaml
     dest: "~/.kube/config"
     remote_src: true
     mode: '0600'
+  when:
+    - inventory_hostname == groups['master'][0]
 
 - name: Set KUBECONFIG environment variable
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: ~/.bashrc
     line: 'export KUBECONFIG=~/.kube/config'
     create: true
+    mode: '0644'
+
+- name: Wait for k3s primary server to be ready
+  block:
+    - name: Wait for kubeconfig
+      ansible.builtin.wait_for:
+        path: /etc/rancher/k3s/k3s.yaml
+        timeout: 300
+
+    - name: Wait for node to be ready
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=Ready node/{{ inventory_hostname }} --timeout=300s --kubeconfig /etc/rancher/k3s/k3s.yaml
+      register: node_ready
+      retries: 10
+      delay: 10
+      until: node_ready.rc == 0
+      changed_when: false
+
+    - name: Wait for core pods
+      ansible.builtin.shell: |
+        kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s --kubeconfig /etc/rancher/k3s/k3s.yaml
+      register: pods_ready
+      retries: 10
+      delay: 10
+      until: pods_ready.rc == 0
+      changed_when: false
+  when:
+    - not k3s_binary.stat.exists
+    - inventory_hostname == groups['master'][0]
+
+- name: Install k3s secondary server
+  ansible.builtin.command:
+    cmd: /tmp/k3s_install.sh server
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ k3s_token }}"
+    INSTALL_K3S_EXEC: "{{ k3s_server_args_secondary }}"
+  args:
+    creates: /usr/local/bin/k3s
+  when:
+    - not k3s_binary.stat.exists
+    - inventory_hostname != groups['master'][0]
+  notify: Restart k3s
+
+- name: Ensure k3s service is enabled and started
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: Wait for k3s cluster to be ready
+  ansible.builtin.command: k3s kubectl wait --for=condition=Ready nodes --all --timeout=300s
+  register: wait_result
+  retries: 10
+  delay: 30
+  until: wait_result.rc == 0
+  changed_when: false
+  when: inventory_hostname == groups['master'][0]
+
+- name: Get kubeconfig from primary node
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_kubeconfig
+  when: inventory_hostname == groups['master'][0]
+
+- name: Check if local kubeconfig exists
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
+  delegate_to: localhost
+  register: local_kubeconfig
+  when: inventory_hostname == groups['master'][0]
+
+- name: Store kubeconfig locally
+  ansible.builtin.copy:
+    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['master'][0]]['ansible_host']) }}"
+    dest: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
+  delegate_to: localhost
+  when:
+    - inventory_hostname == groups['master'][0]
+    - not local_kubeconfig.stat.exists

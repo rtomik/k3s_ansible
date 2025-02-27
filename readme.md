@@ -35,7 +35,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 ## Requirements
 
 - Linux system/vm or WSL on Windows where you can clone the repo. With Ansible and kubectl
-- Servers/PCs/VMs with installed Ubuntu Server 24.04 min 16 GB RAM (recommended 3) refered as nodes
+- Servers/PCs/VMs with installed Ubuntu Server 24.04 min 16 GB RAM (recommended 3) (for testing it can also run on single node) you can find used cheap pcs https://www.lowcostminipcs.com/
 - SSH access to all nodes (ssh keys to root)
 - Domain (recommended: https://porkbun.com/ or https://www.duckdns.org/)
 - Tailscale account https://login.tailscale.com/admin/settings/keys and create new auth keys
@@ -71,7 +71,13 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    CERT_MANAGER_POD=$(kubectl get pods -n cert-manager -l app.kubernetes.io/name=cert-manager -o jsonpath='{.items[0].metadata.name}')
    k logs $CERT_MANAGER_POD -n cert-manager
    ```
-   Rerun the main playbook when certificate is ready
+   On error
+   ```
+   Error cleaning up challenge: while querying the Cloudflare API for DELETE
+   ```
+   Delete TXT _acme-challenge records in cloudflare
+
+   After the certificate is created rerun the main playbook.
 
 5. Run the main playbook
    ```
@@ -98,7 +104,7 @@ After successful deployment:
    - View application logs dashboard
    - Monitor system metrics
    - Track error rates
-4. Use Authentik for Single Sign-On (SSO) at `https://auth.<your-domain>`
+4. Use Authentik for Single Sign-On (SSO) at `https://authentik.<your-domain>`
 5. Access Prometheus at `https://prometheus.<your-domain>`
 
 ## Diagram

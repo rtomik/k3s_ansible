@@ -41,14 +41,14 @@
 
     # Write unencrypted vault file
     - name: Create temporary unencrypted vault file
-      copy:
+      ansible.builtin.copy:
         content: "{{ vault_content }}"
         dest: "/tmp/temp_vault.yml"
       changed_when: false
 
     # Encrypt vault file
     - name: Encrypt vault file
-      command: >
+      ansible.builtin.command: >
         ansible-vault encrypt
         --vault-password-file {{ vault_password_file }}
         --output {{ vault_file }}
@@ -67,14 +67,14 @@
 
 # Debug information
 - name: Display vault status
-  debug:
+  ansible.builtin.debug:
     msg:
       - "Vault file already exists at: {{ vault_file }}"
       - "Vault password file located at: {{ vault_password_file }}"
   when: files_check.results[0].stat.exists
 
 - name: Display information about new vault
-  debug:
+  ansible.builtin.debug:
     msg:
       - "New vault file created at: {{ vault_file }}"
       - "Vault password file located at: {{ vault_password_file }}"

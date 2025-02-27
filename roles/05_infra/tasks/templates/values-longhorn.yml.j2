@@ -1,7 +1,7 @@
 ---
 persistence:
   defaultClass: true
-  defaultClassReplicaCount: "{{ [groups['k3s_cluster'] | length, 3] | min }}" 
+  defaultClassReplicaCount: "{{ [groups['master'] | length, 3] | min }}" 
   
 defaultSettings:
   defaultDataPath: "/var/lib/longhorn"
@@ -13,6 +13,5 @@ metrics:
     additionalLabels:
       release: prometheus
 
-
 longhornUI:
-  replicas: "{{ [groups['k3s_cluster'] | length, 2] | min }}" 
+  replicas: "{{ [groups['master'] | length, 2] | min }}" 

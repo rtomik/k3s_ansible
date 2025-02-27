@@ -1,14 +1,17 @@
 ---
-- import_tasks: config.yml
+- name: Import configuration tasks
+  ansible.builtin.import_tasks: config.yml
   tags:
     - config
 
-- import_tasks: firewall.yml
+- name: Import firewall tasks
+  ansible.builtin.import_tasks: firewall.yml
   tags:
     - config
     - config:firewall
 
-- import_tasks: tailscale.yml
+- name: Import tailscale tasks
+  ansible.builtin.import_tasks: tailscale.yml
   tags:
     - config
     - config:tailscale

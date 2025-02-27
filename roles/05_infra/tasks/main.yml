@@ -43,6 +43,12 @@
     - infra
     - infra:certs
 
+- import_tasks: prometheus.yml
+  tags:
+    - infra
+    - infra:monitoring
+    - infra:prometheus
+
 - import_tasks: longhorn.yml
   tags:
     - infra
@@ -62,12 +68,6 @@
   tags:
     - infra
     - infra:argocd
-
-- import_tasks: prometheus.yml
-  tags:
-    - infra
-    - infra:monitoring
-    - infra:prometheus
 
 - import_tasks: grafana.yml
   tags:
