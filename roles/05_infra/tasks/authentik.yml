@@ -127,10 +127,67 @@
       when: deploy_authentik | bool
 
 - name: Authentik ArgoCD
+  vars:
+    authentik_api_url: "https://authentik.{{ domain }}/api/v3"
+  when: deploy_authentik | bool
   block:
+    - name: Get existing certificate key pairs from Authentik
+      ansible.builtin.uri:
+        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: true
+      register: existing_cert_keypairs
+
+    - name: Set existing signing key fact if exists
+      ansible.builtin.set_fact:
+        signing_key_pk: >-
+          {{
+            existing_cert_keypairs.json.results
+            | selectattr('name', 'equalto', 'ArgoCD Signing Key')
+            | list | first | default(None)
+          }}
+
+    - name: Create a signing key in Authentik if not already present
+      ansible.builtin.uri:
+        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/generate/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        body:
+          common_name: "ArgoCD Signing Key"
+          validity_days: 5000
+          alg: "rsa"
+        body_format: json
+      register: create_signing_key_response
+      when: signing_key_pk is none
+
+    - name: Re-fetch certificate key pairs from Authentik after creation
+      ansible.builtin.uri:
+        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: true
+      register: keypairs_response
+      when: signing_key_pk is none
+
+    - name: Set signing key UID fact
+      ansible.builtin.set_fact:
+        signing_key_uid: >-
+          {{
+            (keypairs_response.json.results if signing_key_pk is none else existing_cert_keypairs.json.results)
+            | selectattr('name', 'equalto', 'ArgoCD Signing Key')
+            | list | first | default({}) | json_query('pk')
+          }}
+
     - name: Check if OAuth2 Provider for ArgoCD exists
       ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20ArgoCD"
+        url: "{{ authentik_api_url }}/providers/oauth2/?name=Provider%20for%20ArgoCD"
         method: GET
         headers:
           Authorization: "Bearer {{ vault_authentik_api_token }}"
@@ -139,12 +196,10 @@
       register: check_provider_response
       changed_when: false
       failed_when: check_provider_response.status not in [200, 404]
-      when: deploy_authentik | bool
 
     - name: Set provider exists fact
       ansible.builtin.set_fact:
         provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-      when: deploy_authentik | bool
 
     - name: Create OAuth2 Provider for ArgoCD
       ansible.builtin.uri:
@@ -167,11 +222,11 @@
             ],
             "redirect_uris": [
               {
-                "matching_mode": "exact",
+                "matching_mode": "strict",
                 "url": "https://argocd.{{ domain }}/api/dex/callback"
               },
               {
-                "matching_mode": "exact",
+                "matching_mode": "strict",
                 "url": "http://localhost:8085/auth/callback"
               }
             ],
@@ -179,14 +234,14 @@
             "refresh_token_validity": "days=30",
             "id_token_validity": "minutes=60",
             "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
+            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}",
+            "signing_key": "{{ signing_key_uid }}"
           }
         body_format: json
       register: create_provider_response
       changed_when: create_provider_response.status == 201
       failed_when: create_provider_response.status not in [200, 201]
       when:
-        - deploy_authentik | bool
         - not provider_exists
 
     - name: Save client credentials
@@ -208,35 +263,33 @@
           }}
       when: deploy_authentik | bool
 
-    - name: Add client and client secret to secret in argocd namespace
-      block:
-        - name: Check if argocd namespace exists
-          kubernetes.core.k8s_info:
-            kind: Namespace
+    - name: Check if argocd namespace exists
+      kubernetes.core.k8s_info:
+        kind: Namespace
+        name: argocd
+      register: namespace_info
+      ignore_errors: true
+
+    - name: Create argocd namespace if it does not exist
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
             name: argocd
-          register: namespace_info
-          ignore_errors: true
-          when: deploy_authentik | bool
-        - name: Create argocd namespace if it does not exist
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Namespace
-              metadata:
-                name: argocd
-          when: namespace_info.resources | length == 0 and deploy_authentik | bool
-        - name: Add user credentials to secret
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Secret
-              metadata:
-                name: argocd-authentik-credentials
-                namespace: argocd
-              data:
-                authentik_client_id: "{{ argocd_client_id | b64encode }}"
-                authentik_client_secret: "{{ argocd_client_secret | b64encode }}"
-          when: deploy_authentik | bool
+      when: namespace_info.resources | length == 0
+
+    - name: Add user credentials to secret
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: argocd-authentik-credentials
+            namespace: argocd
+          data:
+            authentik_client_id: "{{ argocd_client_id | b64encode }}"
+            authentik_client_secret: "{{ argocd_client_secret | b64encode }}"
 
     - name: Check if ArgoCD application exists in Authentik
       ansible.builtin.uri:
@@ -249,12 +302,10 @@
       register: check_app_response
       changed_when: false
       failed_when: check_app_response.status not in [200, 404]
-      when: deploy_authentik | bool
 
     - name: Set application exists fact
       ansible.builtin.set_fact:
         app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
-      when: deploy_authentik | bool
 
     - name: Create an ArgoCD application in Authentik
       ansible.builtin.uri:
@@ -276,7 +327,6 @@
       changed_when: create_app_response.status == 201
       failed_when: create_app_response.status not in [200, 201]
       when:
-        - deploy_authentik | bool
         - not app_exists
 
 - name: Authentik Grafana
@@ -468,7 +518,7 @@
             ],
             "redirect_uris": [
               {
-                "matching_mode": "exact",
+                "matching_mode": "strict",
                 "url": "https://gitlab.{{ domain }}/users/auth/openid_connect/callback"
               }
             ],

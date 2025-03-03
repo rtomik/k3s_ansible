@@ -41,6 +41,9 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
   - Recommended: 3 nodes for HA
   - [Low-cost mini PC options](https://www.lowcostminipcs.com/)
 
+- **My Setup:**
+  - HP ProDesk 600 G3 mini - i3 7300t/16GB RAM/500GB SSD cost 65 euro
+
 ### Network Requirements
 - SSH access to all nodes (root SSH keys)
 - Domain name ([Porkbun](https://porkbun.com/) or [DuckDNS](https://www.duckdns.org/))

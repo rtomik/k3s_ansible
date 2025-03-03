@@ -1,0 +1,30 @@
+---
+- name: Deploy tandoor
+  when: deploy_tandoor| bool
+  block:
+    - name: Check if Tandoor is already installed
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: tandoor
+        namespace: tandoor
+      register: tandoor_check
+      ignore_errors: true
+
+    - name: Fetch Tandoor Helm chart information
+      kubernetes.core.helm_info:
+        name: tandoor
+        release_namespace: tandoor
+      register: tandoor_helm_info
+      ignore_errors: true
+
+    - name: Deploy or upgrade Tandoor
+      kubernetes.core.helm:
+        name: tandoor
+        chart_ref: gabe565/tandoor
+        release_namespace: tandoor
+        create_namespace: true
+        values: "{{ lookup('template', 'values-tandoor.yml.j2') | from_yaml }}"
+        wait: true
+        wait_timeout: 5m
+      register: tandoor_deploy

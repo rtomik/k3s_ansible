@@ -62,3 +62,17 @@
     - deploy_homepage | bool
     - homepage_pod.resources is defined
     - homepage_pod.resources | length > 0
+  register: icons_copy_result
+
+- name: Restart Homepage deployment if new icons or backgrounds are added
+  kubernetes.core.k8s:
+    state: patched
+    kind: Deployment
+    name: homepage
+    namespace: homepage
+    definition:
+      spec:
+        template:
+          metadata:
+            annotations:
+              kubectl.kubernetes.io/restartedAt: "{{ now(fmt='%Y-%m-%dT%H:%M:%SZ') }}"

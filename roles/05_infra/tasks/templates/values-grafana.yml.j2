@@ -41,7 +41,6 @@ env:
   
 envFromSecret: "grafana-authentik-credentials"
 
-
 dashboardProviders:
   dashboardproviders.yaml:
     apiVersion: 1
@@ -96,3 +95,10 @@ datasources:
             matcherRegex: "(?:trace_id|traceid)=(\\w+)"
             name: TraceID
             url: $${__value.raw}
+
+extraVolumeMounts:
+  - name: dashboards
+    mountPath: /var/lib/grafana/dashboards
+extraVolumes:
+  - name: dashboards
+    emptyDir: {}

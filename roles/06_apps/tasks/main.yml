@@ -10,6 +10,8 @@
     - { name: audiobookshelf, url: "https://gitlab.com/api/v4/projects/57546317/packages/helm/release" }
     - { name: pajikos, url: "http://pajikos.github.io/home-assistant-helm-chart/" }
     - { name: bitnami, url: "https://charts.bitnami.com/bitnami" }
+    - { name: multus, url: "https://rke2-charts.rancher.io" }
+    - { name: gabe565, url: "https://charts.gabe565.com" }
   tags:
     - apps
     - apps:repos
@@ -18,10 +20,12 @@
     - apps:audiobookshelf
     - apps:homeassistant
 
-- import_tasks: jellyfin.yml
-  tags:
-    - apps
-    - apps:jellyfin
+
+
+# - import_tasks: jellyfin.yml
+#   tags:
+#     - apps
+#     - apps:jellyfin
 
 - import_tasks: homepage.yml
   tags:
@@ -39,3 +43,7 @@
     - apps:homeassistant
     - apps:smarthome
 
+- import_tasks: tandoor.yml
+  tags:
+    - apps
+    - apps:tandoor
