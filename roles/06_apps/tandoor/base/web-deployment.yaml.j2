@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tandoor-web
+  namespace: tandoor
+  labels:
+    app: tandoor-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tandoor-web
+  template:
+    metadata:
+      labels:
+        app: tandoor-web
+    spec:
+      containers:
+        - name: web
+          image: vabene1111/recipes:{{ tandoor_version | default('latest') }}
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: tandoor-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tandoor-secret
+                  key: POSTGRES_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tandoor-secret
+                  key: SECRET_KEY
+          volumeMounts:
+            - name: staticfiles
+              mountPath: /opt/recipes/staticfiles
+            - name: nginx-config
+              mountPath: /opt/recipes/nginx/conf.d
+            - name: mediafiles
+              mountPath: /opt/recipes/mediafiles
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 500m
+            requests:
+              memory: 256Mi
+              cpu: 100m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: staticfiles
+          emptyDir: {}
+        - name: nginx-config
+          emptyDir: {}
+        - name: mediafiles
+          persistentVolumeClaim:
+            claimName: tandoor-media

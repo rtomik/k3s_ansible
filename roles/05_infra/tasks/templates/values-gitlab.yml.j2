@@ -4,6 +4,7 @@
 global:
   hosts:
     domain: "{{ domain }}"
+    ssh: ssh.gitlab.{{ domain }}
     gitlab:
       name: gitlab.{{ domain }}
   ingress:
@@ -63,11 +64,20 @@ gitlab:
       requests:
         memory: 512Mi
   gitlab-shell:
+    service:
+      type: NodePort
+      nodePort: 30022
+      name: gitlab-shell
+      externalTrafficPolicy: Local
+      internalPort: 22
     resources:
       limits:
         memory: 256Mi
       requests:
         memory: 128Mi
+    extraEnv:
+      # Update to match the new nodePort
+      GITLAB_SHELL_SSH_PORT: "30022"
 
 certmanager:
   install: false

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tandoor
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://gitlab.{{ domain }}/{{ gitlab_username }}/{{ gitlab_project_name | default('k3s-apps') }}.git"
+    targetRevision: main
+    path: apps/tandoor/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tandoor
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

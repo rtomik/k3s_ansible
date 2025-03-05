@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tandoor-db
+  namespace: tandoor
+  labels:
+    app: tandoor-db
+spec:
+  serviceName: tandoor-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tandoor-db
+  template:
+    metadata:
+      labels:
+        app: tandoor-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: tandoor-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tandoor-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 500m
+            requests:
+              memory: 256Mi
+              cpu: 100m
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 5Gi

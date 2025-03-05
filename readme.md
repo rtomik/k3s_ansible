@@ -123,6 +123,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 | GitLab | `https://gitlab.<domain>` | Source Control |
 | Homepage | `https://home.<domain>` | System Dashboard |
 
+
 ## Troubleshooting
 
 Common issues and solutions:

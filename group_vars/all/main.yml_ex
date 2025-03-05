@@ -16,7 +16,7 @@ tailscale_ip_range: <ip range in tailscale for nodes>  #Tailcale ip range for me
 # If you want to use TLS certificates on apps enable cloudflare and define API token
 # Cloudflare api token settings Permissions: Zone - DNS - Edit Zone - Zone - Read Zone Resources: Include - All Zones
 enable_cloudflare: true
-cloudflare_api_token:
+cloudflare_api_token: <Cloudflare API Token>
 tls_secret_name: "wildcard-{{ domain }}-tls"
 
 # ----- Optional variables --------- #
@@ -33,6 +33,7 @@ deploy_jellyfin: true
 deploy_arr_stack: false
 deploy_audiobookshelf: true
 deploy_homeassistant: true
+deploy_tandoor: true
 
 # K3s config
 k3s_version: v1.31.2+k3s1
@@ -42,10 +43,9 @@ k3s_server_args_primary: >-
   --bind-address {{ tailscale_ip.stdout }}
   --advertise-address {{ tailscale_ip.stdout }}
   --node-ip {{ tailscale_ip.stdout }}
+  --disable=traefik
   --disable=servicelb
   --flannel-iface tailscale0
-  --disable=traefik
-  --tls-san {{ tailscale_ip.stdout }}
   --cluster-reset-restore-path=""
   --etcd-expose-metrics=true
 
@@ -57,7 +57,6 @@ k3s_server_args_secondary: >-
   --flannel-iface tailscale0
   --disable=traefik
   --server https://{{ hostvars[groups['master'][0]]['tailscale_ip']['stdout'] }}:6443
-  --tls-san {{ tailscale_ip.stdout }}
 
 # Helm chart versions
 traefik_version: 34.1.0
@@ -77,6 +76,9 @@ grafana_version: 8.8.5
 loki_version: 6.24.1
 promtail_version: 6.16.5
 
+gitlab_api_token: ""
+gitlab_username: ""
+gitlab_project_name: "k3s-apps"
 
 # Server configuration
 perform_full_upgrade: true
