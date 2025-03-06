@@ -16,9 +16,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: tandoor-nginx
+                name: tandoor-web
                 port:
-                  number: 80
+                  number: 8080
   tls:
     - hosts:
         - recipes.{{ domain }}

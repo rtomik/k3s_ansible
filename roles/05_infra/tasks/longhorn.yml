@@ -25,11 +25,6 @@
     wait: true
     wait_timeout: 10m
     values: "{{ lookup('template', 'values-longhorn.yml.j2') | from_yaml }}"
-  when: >
-    longhorn_check.resources | length == 0 or
-    (longhorn_helm_info.status is defined and
-     longhorn_helm_info.status.chart_version is defined and
-     longhorn_helm_info.status.chart_version is version(longhorn_version, '<'))
   register: longhorn_deploy
   until: longhorn_deploy is succeeded
   retries: 3

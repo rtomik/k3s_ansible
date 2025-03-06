@@ -7,6 +7,7 @@
     - infra
     - infra:helm
 
+
 - name: Add Helm repositories
   kubernetes.core.helm_repository:
     name: "{{ item.name }}"
@@ -27,6 +28,15 @@
     - infra
     - infra:repos
     - infra:monitoring
+    - infra:longhorn
+
+- name: Update Helm repositories
+  ansible.builtin.shell: helm repo update
+  changed_when: false
+  tags:
+    - infra
+    - infra:repos
+    - infra:longhorn
 
 - import_tasks: metallb.yml
   tags:

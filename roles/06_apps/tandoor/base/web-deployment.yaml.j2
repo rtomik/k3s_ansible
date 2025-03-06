@@ -34,6 +34,16 @@ spec:
                 secretKeyRef:
                   name: tandoor-secret
                   key: SECRET_KEY
+            - name: AUTHENTIK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tandoor-authentik-credentials
+                  key: AUTHENTIK_CLIENT_ID
+            - name: AUTHENTIK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tandoor-authentik-credentials
+                  key: AUTHENTIK_CLIENT_SECRET            
           volumeMounts:
             - name: staticfiles
               mountPath: /opt/recipes/staticfiles
@@ -44,10 +54,9 @@ spec:
           resources:
             limits:
               memory: 1Gi
-              cpu: 500m
             requests:
               memory: 256Mi
-              cpu: 100m
+              cpu: 50m
           livenessProbe:
             httpGet:
               path: /

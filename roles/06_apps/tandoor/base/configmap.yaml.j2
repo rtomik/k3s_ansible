@@ -24,3 +24,7 @@ data:
     
     # Feature flags
     ENABLE_PDF_EXPORT=1
+
+    # Using Authentik OAuth2/OpenID for authentication
+    SOCIAL_PROVIDERS=allauth.socialaccount.providers.openid_connect
+    SOCIALACCOUNT_PROVIDERS={ "openid_connect": { "SERVERS": [{ "id": "authentik", "name": "Authentik", "server_url": "https://authentik.{{ domain }}/application/o/tandoor-recipes/.well-known/openid-configuration", "token_auth_method": "client_secret_basic", "APP": { "client_id": "${AUTHENTIK_CLIENT_ID}", "secret": "${AUTHENTIK_CLIENT_SECRET}" } } ] } }
