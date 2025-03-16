@@ -1,0 +1,67 @@
+replicaCount: 1
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+  hosts:
+    - host: git.{{ domain }}
+      paths:
+        - path: /
+          pathType: Prefix
+      tls:
+        - secretName: chart-example-tls
+          hosts:
+            - git.{{ domain }}
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: longhorn
+  accessModes:
+    - ReadWriteOnce
+
+gitea:
+  admin:
+    existingSecret: gitea-admin-secret
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+  oauth:
+    - name: "authentik"
+      provider: "openidConnect"
+      existingSecret: gitea-authentik-secret
+      autoDiscoverUrl: "https://authentik.{{ domain }}/application/o/gitea/.well-known/openid-configuration"
+      iconUrl: https://authentik.{{ domain }}/static/dist/assets/icons/icon.svg
+      scopes: "email profile"
+
+  config:
+    server:
+      ROOT_URL: "https://git.{{ domain }}"
+    oauth2_client:
+      ENABLE_AUTO_REGISTRATION: true
+
+postgresql-ha:
+  global:
+    postgresql:
+      database: gitea
+      password: {{ gitea_postgresql_password }}
+      username: gitea
+  enabled: true
+  postgresql:
+    repmgrPassword: {{ gitea_repmgr_password }}
+    postgresPassword: {{ gitea_postgresql_password }}
+    password: {{ gitea_postgresql_password }}
+  pgpool:
+    adminPassword: {{ gitea_pgpool_password }}
+  service:
+    ports:
+      postgresql: 5432
+  persistence:
+    size: 10Gi
+    storageClass: longhorn

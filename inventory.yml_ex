@@ -4,12 +4,9 @@ all:
       children:
         master:
           hosts:
-            master1:
-              ansible_host: <Local IP>
-              k3s_type: server
-            master2:
-              ansible_host: <Local IP>
-              k3s_type: server
-            master3:
-              ansible_host: <Local IP>
-              k3s_type: server
+            k3s-master-01:
+              ansible_host: <IP>
+            k3s-master-02:
+              ansible_host: <IP>
+            k3s-master-03:
+              ansible_host: <IP>            

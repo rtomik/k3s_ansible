@@ -1,14 +1,4 @@
 ---
-- name: Check if GitLab is already installed
-  kubernetes.core.k8s_info:
-    api_version: apps/v1
-    kind: Deployment
-    name: gitlab-webservice-default
-    namespace: gitlab
-  register: gitlab_check
-  ignore_errors: true
-  when: deploy_gitlab | bool
-
 - name: Fetch GitLab Helm chart information
   kubernetes.core.helm_info:
     name: gitlab
@@ -36,11 +26,12 @@
       - app=webservice
   register: gitlab_pods
   until: >
+    gitlab_pods.resources is defined and
     gitlab_pods.resources | length > 0 and
     (gitlab_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
   retries: 30
   delay: 30
-  when: deploy_gitlab | bool and gitlab_deploy is changed
+  when: deploy_gitlab | bool
 
 - name: Ensure SSH config directory exists
   ansible.builtin.file:

@@ -1,0 +1,234 @@
+---
+- name: Deploy Gitea
+  when: deploy_gitea | bool
+  block:
+    - name: Fetch Gitea Helm chart information
+      kubernetes.core.helm_info:
+        name: gitea
+        release_namespace: gitea
+      register: gitea_helm_info
+      ignore_errors: true
+
+    - name: Check if Gitea admin credentials secret exists
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: gitea-admin-secret
+        namespace: gitea
+      register: existing_admin_secret
+      ignore_errors: true
+
+    - name: Generate random password for Gitea admin
+      ansible.builtin.set_fact:
+        gitea_admin_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
+      when: existing_admin_secret.resources is not defined or existing_admin_secret.resources | length == 0
+
+    - name: Retrieve existing Gitea admin password
+      ansible.builtin.set_fact:
+        gitea_admin_password: "{{ (existing_admin_secret.resources[0].data.password | b64decode) }}"
+      when: existing_admin_secret.resources is defined and existing_admin_secret.resources | length > 0
+
+    - name: Create Gitea admin credentials secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitea-admin-secret
+            namespace: gitea
+          type: Opaque
+          data:
+            username: "{{ 'admin' | b64encode }}"
+            password: "{{ gitea_admin_password | b64encode }}"
+
+    - name: Check if Gitea PostgreSQL credentials secret exists
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: gitea-postgresql-secret
+        namespace: gitea
+      register: existing_postgresql_secret
+      ignore_errors: true
+
+    - name: Generate random passwords for Gitea PostgreSQL
+      ansible.builtin.set_fact:
+        gitea_postgresql_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
+        gitea_repmgr_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
+        gitea_pgpool_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
+      when: existing_postgresql_secret.resources is not defined or existing_postgresql_secret.resources | length == 0
+
+    - name: Retrieve existing PostgreSQL passwords
+      ansible.builtin.set_fact:
+        gitea_postgresql_password: "{{ (existing_postgresql_secret.resources[0].data['postgresql-password'] | b64decode) }}"
+        gitea_repmgr_password: "{{ (existing_postgresql_secret.resources[0].data['repmgr-password'] | b64decode) }}"
+        gitea_pgpool_password: "{{ (existing_postgresql_secret.resources[0].data['pgpool-password'] | b64decode) }}"
+      when: existing_postgresql_secret.resources is defined and existing_postgresql_secret.resources | length > 0
+
+    - name: Create Gitea postgresql credentials secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitea-postgresql-secret
+            namespace: gitea
+          type: Opaque
+          data:
+            postgresql-password: "{{ gitea_postgresql_password | b64encode }}"
+            repmgr-password: "{{ gitea_repmgr_password | b64encode }}"
+            pgpool-password: "{{ gitea_pgpool_password | b64encode }}"
+
+    - name: Deploy or upgrade gitea
+      kubernetes.core.helm:
+        name: gitea
+        chart_ref: gitea-charts/gitea
+        chart_version: "{{ gitea_version }}"
+        release_namespace: gitea
+        create_namespace: true
+        values: "{{ lookup('template', 'values-gitea.yml.j2') | from_yaml }}"
+      register: gitea_deploy
+
+    - name: Wait for gitea to be ready
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: gitea
+        label_selectors:
+          - app=gitea
+      register: gitea_pods
+      until: >
+        gitea_pods.resources is defined and
+        gitea_pods.resources | length > 0 and
+        (gitea_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+      retries: 30
+      delay: 30
+      when: deploy_gitea | bool
+
+- name: Configure Gitea
+  when: deploy_gitea | bool
+  block:
+    - name: Wait for Gitea API to be available
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/version"
+        method: GET
+        status_code: 200
+      register: gitea_api_check
+      retries: 10
+      delay: 30
+      until: gitea_api_check.status == 200
+
+    - name: Check if API token already exists
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
+        method: GET
+        url_username: "admin"
+        url_password: "{{ gitea_admin_password }}"
+        force_basic_auth: true
+        status_code: 200
+      register: existing_tokens
+      ignore_errors: true
+
+    - name: Set token exists flag
+      ansible.builtin.set_fact:
+        token_exists: "{{ existing_tokens.status == 200 and (existing_tokens.json | selectattr('name', 'equalto', 'Ansible API') | list | length > 0) }}"
+
+    - name: Extract existing token if available
+      ansible.builtin.set_fact:
+        existing_api_token: "{{ (existing_tokens.json | selectattr('name', 'equalto', 'Ansible API') | list | first).sha1 }}"
+      when: token_exists | bool
+      ignore_errors: true
+
+    - name: Create access token for automation
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
+        method: POST
+        url_username: "admin"
+        url_password: "{{ gitea_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          name: "Ansible API"
+          scopes: ["write:repository", "write:organization"]
+        status_code: 201
+      register: gitea_token
+      when: not token_exists | default(false)
+
+    - name: Store Gitea API token
+      ansible.builtin.set_fact:
+        gitea_api_token: "{{ existing_api_token | default(gitea_token.json.sha1) | default(lookup('env', 'GITEA_API_TOKEN')) }}"
+      no_log: true
+
+    - name: Create argocd namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: argocd
+
+    - name: Add gitea token to secret in argocd namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitea-api-token
+            namespace: argocd
+          type: Opaque
+          data:
+            api_token: "{{ gitea_api_token | b64encode }}"
+
+    - name: Check if organization exists
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/orgs/{{ git_organization_name }}"
+        method: GET
+        headers:
+          Authorization: "token {{ gitea_api_token }}"
+        status_code: [200, 404]
+      register: org_check
+      ignore_errors: true
+
+    - name: Create organization
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/orgs"
+        method: POST
+        headers:
+          Authorization: "token {{ gitea_api_token }}"
+        body_format: json
+        body:
+          username: "{{ git_organization_name }}"
+          full_name: "{{ git_organization_name }}"
+          description: "Organization for k3s deployemnt"
+          visibility: "public"
+        status_code: [201, 422]
+      register: org_result
+      when: org_check.status == 404
+
+    - name: Check if repository exists
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/repos/{{ git_organization_name }}/{{ git_repo_name }}"
+        method: GET
+        headers:
+          Authorization: "token {{ gitea_api_token }}"
+        status_code: [200, 404]
+      register: repo_check
+      ignore_errors: true
+
+    - name: Create repository
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/org/{{ git_organization_name }}/repos"
+        method: POST
+        headers:
+          Authorization: "token {{ gitea_api_token }}"
+        body_format: json
+        body:
+          name: "{{ git_repo_name }}"
+          description: "Main git repository"
+          private: false
+          auto_init: true
+        status_code: [201, 422]
+      register: repo_result
+      when: repo_check.status == 404

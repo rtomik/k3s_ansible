@@ -4,6 +4,7 @@
     - name: Generate secure passwords
       ansible.builtin.set_fact:
         tandoor_db_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+        tandoor_postgres_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
         tandoor_secret_key: "{{ lookup('password', '/dev/null length=50 chars=ascii_letters,digits') }}"
       no_log: true
 
@@ -20,12 +21,13 @@
           apiVersion: v1
           kind: Secret
           metadata:
-            name: tandoor-secret
+            name: recipes
             namespace: tandoor
           type: Opaque
           stringData:
-            POSTGRES_PASSWORD: "{{ tandoor_db_password }}"
-            SECRET_KEY: "{{ tandoor_secret_key }}"
+            postgresql-password: "{{ tandoor_db_password }}"
+            postgresql-postgres-password: " {{ tandoor_postgres_password }}"
+            secret-key: "{{ tandoor_secret_key }}"
 
 - name: Set up GitOps for Tandoor
   when:

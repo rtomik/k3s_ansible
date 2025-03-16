@@ -35,6 +35,12 @@ config:
           description: Git Repository Manager
           icon: /icons/gitlab.svg
 {% endif %}
+{% if deploy_gitea %}
+      - Gitea:
+          href: https://git.{{ domain }}/
+          description: Git Repository Manager
+          icon: /icons/git.svg
+{% endif %}
       - Longhorn:
           href: https://longhorn.{{ domain }}/
           description: Cloud Native Storage

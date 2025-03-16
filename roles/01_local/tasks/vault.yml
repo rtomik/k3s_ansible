@@ -1,5 +1,5 @@
 - name: Check if required files exist
-  stat:
+  ansible.builtin.stat:
     path: "{{ item }}"
   with_items:
     - "{{ vault_file }}"
@@ -8,7 +8,7 @@
 
 # Create vault password file if it doesn't exist
 - name: Create vault password file
-  copy:
+  ansible.builtin.copy:
     content: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     dest: "{{ vault_password_file }}"
     mode: '0600'
@@ -16,10 +16,11 @@
 
 # Block to handle vault content creation
 - name: Handle vault content creation
+  when: not files_check.results[0].stat.exists
   block:
     # Generate random tokens and passwords
     - name: Generate tokens and secrets
-      command: "openssl rand -base64 {{ item.length }}"
+      ansible.builtin.command: "openssl rand -base64 {{ item.length }}"
       with_items:
         - { name: 'k3s_token', length: 48 }
         - { name: 'authentik_secret', length: 25 }
@@ -31,7 +32,7 @@
 
     # Create vault content fact
     - name: Create vault content
-      set_fact:
+      ansible.builtin.set_fact:
         vault_content: |
           vault_k3s_token: "{{ generated_tokens.results[0].stdout }}"
           vault_authentik_secret_key: "{{ generated_tokens.results[1].stdout }}"
@@ -58,12 +59,10 @@
 
     # Remove temporary file
     - name: Remove temporary unencrypted vault file
-      file:
+      ansible.builtin.file:
         path: "/tmp/temp_vault.yml"
         state: absent
       changed_when: false
-
-  when: not files_check.results[0].stat.exists
 
 # Debug information
 - name: Display vault status

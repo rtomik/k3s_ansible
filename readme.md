@@ -1,6 +1,25 @@
-# Ansible k3s Cluster Deployment
+# GitOps Ansible K3s Homelab Deployment
 
-This repository contains Ansible playbooks and roles for deploying a highly available k3s Kubernetes cluster with various applications and services.
+This repository contains Ansible playbooks and roles for deploying a highly available k3s Kubernetes cluster with various applications and services, following GitOps principles.
+
+## What is GitOps?
+
+GitOps is a modern approach to managing infrastructure and applications where:
+
+- **Git is the single source of truth**: All configuration is stored in Git repositories
+- **Declarative configuration**: The desired state of the system is explicitly defined
+- **Continuous reconciliation**: Automated processes ensure the actual state matches the desired state
+- **Pull-based deployment**: Agents in the cluster pull changes from Git repositories
+- **Observability**: Drift between the desired and actual state is detected and reported
+
+In this project, we use ArgoCD as our GitOps engine to automatically deploy and manage applications from Git repositories, ensuring your Kubernetes cluster always reflects the state defined in your code.
+
+## GitOps Workflow
+
+1. **Define Infrastructure as Code**: All Kubernetes resources are defined in YAML manifests stored in Git
+2. **Version Control**: Track changes, rollbacks, and compliance with Git history
+3. **Automated Synchronization**: ArgoCD watches your Git repositories and applies changes to your cluster
+4. **Self-healing**: Automatic reconciliation ensures your cluster matches the desired state
 
 ## Overview
 
@@ -26,14 +45,16 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
   - Error monitoring
   - System performance
   - Storage metrics
-  
+- 🔄 GitOps-based application deployment and lifecycle management
+- 🛡️ Configuration drift detection and automated remediation
+- 📜 Audit trail of all configuration changes
+
 ## Prerequisites
 
 ### Hardware Requirements
 - **Control Node:**
   - Linux system/VM or WSL2 on Windows
-  - Ansible and kubectl installed
-  - Git
+  - With Git, Ansible and kubectl installed
 
 - **Cluster Nodes:**
   - Ubuntu Server 24.04
@@ -43,6 +64,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 
 - **My Setup:**
   - HP ProDesk 600 G3 mini - i3 7300t/16GB RAM/500GB SSD cost 65 euro
+  - GenMachine Mini PC - AMD 5300U/16GB RAM/500GB SSD cost 200 euro
 
 ### Network Requirements
 - SSH access to all nodes (root SSH keys)
@@ -137,6 +159,11 @@ Common issues and solutions:
    - Verify Tailscale connectivity
    - Check firewall rules
    - Ensure correct SSH keys
+
+3. **GitOps Sync Issues**
+   - Check ArgoCD logs for sync errors
+   - Verify repository access
+   - Validate YAML syntax in manifests
 
 ## Contributing
 

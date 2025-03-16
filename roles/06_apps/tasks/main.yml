@@ -20,8 +20,6 @@
     - apps:audiobookshelf
     - apps:homeassistant
 
-
-
 # - import_tasks: jellyfin.yml
 #   tags:
 #     - apps

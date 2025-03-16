@@ -2,30 +2,31 @@
 # default values
 # https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack?modal=values
 
-grafana:
-  enabled: false
-
 prometheus:
-  prometheusSpec:
-    retention: 60d
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: longhorn
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 50Gi
-  ingress:
-    enabled: true
-    ingressClassName: traefik
-    annotations:
-      traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
-    hosts:
-      - prometheus.{{ domain }}
-    path: /
-    pathType: Prefix
-    tls:
+  grafana:
+    enabled: false
+
+  prometheus:
+    prometheusSpec:
+      retention: 60d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: longhorn
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
       hosts:
-        - prometheus.{{ domain }}    
+        - prometheus.{{ domain }}
+      path: /
+      pathType: Prefix
+      tls:
+        hosts:
+          - prometheus.{{ domain }}    
