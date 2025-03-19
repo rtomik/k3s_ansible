@@ -18,9 +18,7 @@
     - { name: longhorn, url: "https://charts.longhorn.io" }
     - { name: rancher-stable, url: "https://releases.rancher.com/server-charts/stable" }
     - { name: jetstack, url: "https://charts.jetstack.io" }
-    - { name: metallb, url: "https://metallb.github.io/metallb" }
     - { name: gitlab, url: "https://charts.gitlab.io/" }
-    - { name: grafana, url: "https://grafana.github.io/helm-charts"}
     - { name: emberstack, url: "https://emberstack.github.io/helm-charts"}
     - { name: gitea, url: "https://dl.gitea.io/charts/"}
   tags:
@@ -47,10 +45,15 @@
     - infra
     - infra:certs
 
-- import_tasks: metallb.yml
+- import_tasks: longhorn.yml
   tags:
     - infra
-    - infra:metallb
+    - infra:longhorn
+
+- import_tasks: authentik.yml
+  tags:
+    - infra
+    - infra:authentik
 
 - import_tasks: gitea.yml
   tags:
@@ -69,17 +72,17 @@
     - infra
     - infra:argocd
 
-- import_tasks: authentik.yml
+- import_tasks: metallb.yml
   tags:
     - infra
-    - infra:authentik
-
-- import_tasks: longhorn.yml
-  tags:
-    - infra
-    - infra:longhorn
+    - infra:metallb
 
 - import_tasks: rancher.yml
   tags:
     - infra
     - infra:rancher
+
+- import_tasks: grafana.yml
+  tags:
+    - infra
+    - infra:grafana

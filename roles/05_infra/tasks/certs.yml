@@ -28,15 +28,18 @@
           - 9.9.9.9
   when: cert_manager_check.resources | length == 0
 
-- name: Wait for cert-manager to be ready
+- name: Wait for cert-manager webhook to be ready
   kubernetes.core.k8s_info:
-    kind: Pod
+    api_version: apps/v1
+    kind: Deployment
+    name: cert-manager-webhook
     namespace: cert-manager
-    label_selectors:
-      - app.kubernetes.io/instance=cert-manager
-  register: cert_manager_pods
-  until: cert_manager_pods.resources | length > 0 and cert_manager_pods.resources | map(attribute='status.phase') | list | unique == ['Running']
-  retries: 10
+  register: webhook_deployment
+  until: 
+    - webhook_deployment.resources | length > 0
+    - webhook_deployment.resources[0].status.availableReplicas is defined
+    - webhook_deployment.resources[0].status.availableReplicas > 0
+  retries: 12
   delay: 30
 
 - name: Deploy reflector
@@ -58,6 +61,15 @@
       type: Opaque
       data:
         api-token: "{{ cloudflare_api_token | b64encode }}"
+  when: enable_cloudflare | bool
+
+- name: Check if ClusterIssuer exists
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: ClusterIssuer
+    name: cloudflare-issuer
+  register: issuer_check
+  ignore_errors: true
   when: enable_cloudflare | bool
 
 - name: Create issuer
@@ -82,6 +94,33 @@
               selector:
                 dnsZones:
                   - "{{ domain }}"
+  when:
+    - enable_cloudflare | bool
+    - issuer_check.resources | length == 0
+
+- name: Wait for ClusterIssuer to be ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: ClusterIssuer
+    name: cloudflare-issuer
+  register: issuer_status
+  until:
+    - issuer_status.resources | length > 0
+    - issuer_status.resources[0].status is defined
+    - issuer_status.resources[0].status.conditions is defined
+    - issuer_status.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: 5
+  delay: 30
+  when: enable_cloudflare | bool
+
+- name: Check if Certificate exists
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: wildcard-{{ domain }}
+    namespace: cert-manager
+  register: certificate_check
+  ignore_errors: true
   when: enable_cloudflare | bool
 
 - name: Create certificate
@@ -107,4 +146,6 @@
             reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "traefik,gitlab"
             reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
             reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "traefik,gitlab"
-  when: enable_cloudflare | bool
+  when:
+    - enable_cloudflare | bool
+    - certificate_check.resources | length == 0

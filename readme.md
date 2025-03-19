@@ -1,6 +1,6 @@
 # GitOps Ansible K3s Homelab Deployment
 
-This repository contains Ansible playbooks and roles for deploying a highly available k3s Kubernetes cluster with various applications and services, following GitOps principles.
+This repository contains Ansible playbooks and roles for deploying a highly available K3s Kubernetes cluster with various applications and services, following GitOps principles.
 
 ## What is GitOps?
 
@@ -13,13 +13,6 @@ GitOps is a modern approach to managing infrastructure and applications where:
 - **Observability**: Drift between the desired and actual state is detected and reported
 
 In this project, we use ArgoCD as our GitOps engine to automatically deploy and manage applications from Git repositories, ensuring your Kubernetes cluster always reflects the state defined in your code.
-
-## GitOps Workflow
-
-1. **Define Infrastructure as Code**: All Kubernetes resources are defined in YAML manifests stored in Git
-2. **Version Control**: Track changes, rollbacks, and compliance with Git history
-3. **Automated Synchronization**: ArgoCD watches your Git repositories and applies changes to your cluster
-4. **Self-healing**: Automatic reconciliation ensures your cluster matches the desired state
 
 ## Overview
 
@@ -36,6 +29,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 ## Features
 
 - 🚀 Single command cluster deployment
+- 🔄 GitOps-based application deployment and lifecycle management
 - 📊 Comprehensive monitoring and logging stack
 - 🔐 Integrated SSO with Authentik
 - 💾 Distributed storage with Longhorn
@@ -45,9 +39,10 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
   - Error monitoring
   - System performance
   - Storage metrics
-- 🔄 GitOps-based application deployment and lifecycle management
 - 🛡️ Configuration drift detection and automated remediation
 - 📜 Audit trail of all configuration changes
+- 🔄 High availability cluster configuration
+- 🔒 TLS encryption for all services with automatic certificate management
 
 ## Prerequisites
 
@@ -99,9 +94,10 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    NOTE: If you enabled cloudflare it can take some time to propagate new TLS certificate
    First deploy k3s and cert-manager, 
    ```
-   ansible-playbook playbooks/main.yml --tags local,config,k3s,infra:metallb,infra:traefik,infra:certs
+   ansible-playbook playbooks/main.yml --tags local,config,k3s,infra:traefik,infra:certs
    ```
-   Check if certificate is ready it may take up to 5-10 minutes.
+   Kubeconfig will be stored in playbook dir
+   Verify certificate (wait 5-10 minutes):
    ```
    k get certificate -A
    ```

@@ -49,4 +49,3 @@
         logs-app.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-app.json') | string }}"
         logs-overview.json: "{{ lookup('file', playbook_dir + '/../roles/05_infra/grafana/files/dashboards/logs-overview.json') | string }}"
   when: deploy_grafana | bool
-

@@ -20,28 +20,28 @@
     - apps:audiobookshelf
     - apps:homeassistant
 
-# - import_tasks: jellyfin.yml
+- import_tasks: argocd.yml
+  tags:
+    - apps
+    - apps:argocd
+
+# - import_tasks: homepage.yml
 #   tags:
 #     - apps
-#     - apps:jellyfin
+#     - apps:homepage
 
-- import_tasks: homepage.yml
-  tags:
-    - apps
-    - apps:homepage
+# - import_tasks: audiobookshelf.yml
+#   tags:
+#     - apps
+#     - apps:audiobookshelf
 
-- import_tasks: audiobookshelf.yml
-  tags:
-    - apps
-    - apps:audiobookshelf
+# - import_tasks: homeassistant.yml
+#   tags:
+#     - apps
+#     - apps:homeassistant
+#     - apps:smarthome
 
-- import_tasks: homeassistant.yml
-  tags:
-    - apps
-    - apps:homeassistant
-    - apps:smarthome
-
-- import_tasks: tandoor.yml
-  tags:
-    - apps
-    - apps:tandoor
+# - import_tasks: tandoor.yml
+#   tags:
+#     - apps
+#     - apps:tandoor

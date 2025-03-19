@@ -1,6 +1,5 @@
 ---
 - name: Deploy ArgoCD
-  when: deploy_argocd | bool
   block:
     - name: Check if ArgoCD is already installed
       kubernetes.core.k8s_info:
@@ -10,7 +9,6 @@
         namespace: argocd
       register: argocd_check
       ignore_errors: true
-      when: deploy_argocd | bool
 
     - name: Fetch ArgoCD Helm chart information
       kubernetes.core.helm_info:
@@ -18,7 +16,6 @@
         release_namespace: argocd
       register: argocd_helm_info
       ignore_errors: true
-      when: deploy_argocd | bool
 
     - name: Deploy or upgrade ArgoCD
       kubernetes.core.helm:
@@ -31,7 +28,6 @@
         wait: true
         wait_timeout: 10m
       register: argocd_deploy
-      when: deploy_argocd | bool
       until: argocd_deploy is succeeded
       retries: 3
       delay: 10
@@ -48,7 +44,7 @@
         (argocd_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
       retries: 20
       delay: 30
-      when: deploy_argocd | bool and argocd_deploy is changed
+      when: argocd_deploy is changed
 
 - name: Get git api token
   block:
@@ -146,9 +142,14 @@
       failed_when: argocd_repo_add.rc != 0 and "already exists" not in argocd_repo_add.stderr
       no_log: true
 
-- name: Deploy apps via GitOps
+- name: Deploy infrastructure apps via GitOps
   vars:
     apps:
+      - name: "metallb"
+        chart_name: "metallb"
+        version: "{{ metallb_version }}"
+        repo: "https://metallb.github.io/metallb"
+        namespace: "metallb-system"
       - name: "prometheus"
         chart_name: "kube-prometheus-stack"
         version: "{{ prometheus_stack_version }}"
@@ -171,6 +172,7 @@
         namespace: "monitoring"
     directories:
       - argocd-apps
+      - apps/metallb
       - apps/prometheus
       - apps/grafana
       - apps/loki
