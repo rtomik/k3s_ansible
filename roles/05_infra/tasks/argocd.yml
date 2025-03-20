@@ -144,40 +144,58 @@
 
 - name: Deploy infrastructure apps via GitOps
   vars:
-    apps:
-      - name: "metallb"
+    app_definitions:
+      metallb:
+        enabled: "true"
         chart_name: "metallb"
         version: "{{ metallb_version }}"
         repo: "https://metallb.github.io/metallb"
         namespace: "metallb-system"
-      - name: "prometheus"
+      prometheus:
+        enabled: "{{ deploy_prometheus | default(false) }}"
         chart_name: "kube-prometheus-stack"
         version: "{{ prometheus_stack_version }}"
         repo: "https://prometheus-community.github.io/helm-charts"
         namespace: "monitoring"
-      - name: "grafana"
+      grafana:
+        enabled: "{{ deploy_grafana | default(false) }}"
         chart_name: "grafana"
         version: "{{ grafana_version }}"
         repo: "https://grafana.github.io/helm-charts"
         namespace: "monitoring"
-      - name: "loki"
+      loki:
+        enabled: "{{ deploy_loki | default(false) }}"
         chart_name: "loki"
         version: "{{ loki_version }}"
         repo: "https://grafana.github.io/helm-charts"
         namespace: "monitoring"
-      - name: "promtail"
+      promtail:
+        enabled: "{{ deploy_loki | default(false) }}"
         chart_name: "promtail"
         version: "{{ promtail_version }}"
         repo: "https://grafana.github.io/helm-charts"
         namespace: "monitoring"
-    directories:
+
+    # Filter for enabled apps only
+    enabled_apps: "{{ app_definitions | dict2items |
+                    selectattr('value.enabled', 'boolean') |
+                    list }}"
+
+    # Generate base directories
+    base_directories:
       - argocd-apps
-      - apps/metallb
-      - apps/prometheus
-      - apps/grafana
-      - apps/loki
-      - apps/promtail
+
+    # Generate app directories dynamically
+    app_directories: "{{ enabled_apps | map(attribute='key') |
+                        map('regex_replace', '^(.*)$', 'apps/\\1') | list }}"
+
+    # Combined directory list
+    directories: "{{ base_directories + app_directories }}"
   block:
+    - name: Display enabled apps for deployment
+      ansible.builtin.debug:
+        msg: "Deploying the following apps: {{ enabled_apps | map(attribute='key') | join(', ') }}"
+
     - name: Create temporary directory for Git operations
       ansible.builtin.tempfile:
         state: directory
@@ -201,53 +219,53 @@
 
     - name: Create Chart.yaml files
       ansible.builtin.copy:
-        dest: "{{ git_temp_dir.path }}/apps/{{ item.name }}/Chart.yaml"
+        dest: "{{ git_temp_dir.path }}/apps/{{ item.key }}/Chart.yaml"
         content: |
           apiVersion: v2
-          name: {{ item.name }}
-          description: Helm chart for {{ item.name }}
+          name: {{ item.key }}
+          description: Helm chart for {{ item.key }}
           type: application
           version: 0.0.0
           dependencies:
-            - name: {{ item.chart_name }}
-              version: {{ item.version }}
-              repository: {{ item.repo }}
-      loop: "{{ apps }}"
+            - name: {{ item.value.chart_name }}
+              version: {{ item.value.version }}
+              repository: {{ item.value.repo }}
+      loop: "{{ enabled_apps }}"
 
     - name: Create values.yaml files
       ansible.builtin.template:
-        src: "values-{{ item.name }}.yml.j2"
-        dest: "{{ git_temp_dir.path }}/apps/{{ item.name }}/values.yaml"
-      loop: "{{ apps }}"
+        src: "values-{{ item.key }}.yml.j2"
+        dest: "{{ git_temp_dir.path }}/apps/{{ item.key }}/values.yaml"
+      loop: "{{ enabled_apps }}"
 
     - name: Create ArgoCD applications
       ansible.builtin.copy:
-        dest: "{{ git_temp_dir.path }}/argocd-apps/{{ item.name }}.yaml"
+        dest: "{{ git_temp_dir.path }}/argocd-apps/{{ item.key }}.yaml"
         content: |
           apiVersion: argoproj.io/v1alpha1
           kind: Application
           metadata:
-            name: {{ item.name }}
+            name: {{ item.key }}
             namespace: argocd
           spec:
             project: default
             source:
               repoURL: https://git.{{ domain }}/{{ git_organization_name }}/{{ git_repo_name }}.git
               targetRevision: HEAD
-              path: apps/{{ item.name }}
+              path: apps/{{ item.key }}
               helm:
                 valueFiles:
                   - values.yaml
             destination:
               server: https://kubernetes.default.svc
-              namespace: {{ item.namespace }}
+              namespace: {{ item.value.namespace }}
             syncPolicy:
               automated:
                 prune: true
                 selfHeal: true
               syncOptions:
                 - CreateNamespace=true
-      loop: "{{ apps }}"
+      loop: "{{ enabled_apps }}"
 
     - name: Push to Git repo
       ansible.builtin.shell: |
@@ -255,7 +273,7 @@
         git config user.email "ansible@{{ domain }}"
         git config user.name "Ansible Automation"
         git add .
-        git commit -m "Initial GitOps repository setup by Ansible"
+        git diff --cached --quiet || git commit -m "Deploy enabled apps: {{ enabled_apps | map(attribute='key') | join(', ') }}"
         git push
       environment:
         GIT_TERMINAL_PROMPT: 0
@@ -268,8 +286,8 @@
       kubernetes.core.k8s:
         state: present
         namespace: argocd
-        src: "{{ git_temp_dir.path }}/argocd-apps/{{ item.name }}.yaml"
-      loop: "{{ apps }}"
+        src: "{{ git_temp_dir.path }}/argocd-apps/{{ item.key }}.yaml"
+      loop: "{{ enabled_apps }}"
   always:
     - name: Remove temporary directory
       ansible.builtin.file:
