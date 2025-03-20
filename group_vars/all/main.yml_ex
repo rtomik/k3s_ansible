@@ -32,19 +32,25 @@ deploy_gitea: true
 git_organization_name: "homelab"
 git_repo_name: "argocd"
 
- ----- Optional variables --------- #
-
+# Define which app to deploy
 # Change to false if you dont want to deploy the app
-deploy_rancher: false
-deploy_authentik: true
+# Monitoring
+deploy_prometheus: true
 deploy_grafana: true
 deploy_loki: true
-deploy_homepage: true
-deploy_jellyfin: true
-deploy_arr_stack: false
+# infrastructure
+deploy_rancher: false
+deploy_authentik: true
+# Apps
 deploy_audiobookshelf: true
 deploy_homeassistant: true
 deploy_tandoor: true
+deploy_open_webui: true
+deploy_jellyfin: true
+deploy_arr_stack: false
+deploy_homepage: true
+
+# ----- Optional variables --------- #
 
 # K3s config
 k3s_version: v1.31.2+k3s1
@@ -82,11 +88,12 @@ gitea_version: 11.0.0
 jellyfin_version: 2.1.0
 homepage_version: 2.0.1
 reflector_version: 7.1.288
-audiobookshelf_version: 2.18.1
+audiobookshelf_version: 0.0.1
 prometheus_stack_version: 66.3.1
 grafana_version: 8.8.5
 loki_version: 6.24.1
 promtail_version: 6.16.5
+openwebui_version: 5.24.0
 
 # Server configuration
 perform_full_upgrade: true
