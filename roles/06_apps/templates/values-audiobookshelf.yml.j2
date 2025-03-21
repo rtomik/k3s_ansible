@@ -1,3 +1,4 @@
+# default values https://github.com/mmuenker/audiobookshelf-chart/blob/development/values.yaml
 audiobookshelf:
   timezone: "{{ timezone }}"
   replicaCount: 1
@@ -40,4 +41,4 @@ audiobookshelf:
     repository: ghcr.io/advplyr/audiobookshelf
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    #tag: "latest"
+    tag: "2.9.0"

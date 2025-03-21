@@ -1,19 +1,8 @@
 ---
 prometheus:
-  grafana:
-    enabled: false
+  server:
+    retention: "60d"
 
-  prometheus:
-    prometheusSpec:
-      retention: 60d
-      storageSpec:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: longhorn
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 50Gi
     ingress:
       enabled: true
       ingressClassName: traefik
@@ -25,5 +14,19 @@ prometheus:
       path: /
       pathType: Prefix
       tls:
-        hosts:
-          - prometheus.{{ domain }}    
+        - hosts:
+            - prometheus.{{ domain }}
+
+    persistentVolume:
+      enabled: true
+      accessModes:
+        - ReadWriteOnce
+      size: 50Gi
+      storageClass: "longhorn"
+
+    alertmanager:
+      enabled: true
+      persistence:
+        size: 2Gi
+        storageClass: "longhorn"
+      

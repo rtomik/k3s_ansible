@@ -1,167 +1,164 @@
----
-# Default values: https://github.com/jameswynn/helm-charts/blob/main/charts/homepage/values.yaml
-config:
-  bookmarks:
-    - Developer:
-        - Github:
-            - abbr: GH
-              href: https://github.com/
-        - Icons:
-            - abbr: IC
-              href: https://github.com/homarr-labs/dashboard-icons/tree/main/svg
-  services:
-    - Infrastructure:
+homepage:
+  config:
+    bookmarks:
+      - Developer:
+          - Github:
+              - abbr: GH
+                href: https://github.com/
+          - Icons:
+              - abbr: IC
+                href: https://github.com/homarr-labs/dashboard-icons/tree/main/svg
+    services:
+      - Infrastructure:
 {% if deploy_rancher %}
-      - Rancher:
-          href: https://rancher.{{ domain }}/
-          description: Kubernetes Management
-          icon: /icons/rancher.svg
+        - Rancher:
+            href: https://rancher.{{ domain }}/
+            description: Kubernetes Management
+            icon: /icons/rancher.svg
 {% endif %}
-{% if deploy_argocd %}
-      - ArgoCD:
-          href: https://argocd.{{ domain }}
-          description: GitOps CD tool for Kubernetes
-          icon: /icons/argo.svg
-{% endif %}
+        - ArgoCD:
+            href: https://argocd.{{ domain }}
+            description: GitOps CD tool for Kubernetes
+            icon: /icons/argo.svg
 {% if deploy_authentik %}
-      - Authentik:
-          href: https://authentik.{{ domain }}/
-          description: SSO Provider
-          icon: /icons/authentik.svg
+        - Authentik:
+            href: https://authentik.{{ domain }}/
+            description: SSO Provider
+            icon: /icons/authentik.svg
 {% endif %}
 {% if deploy_gitlab %}
-      - GitLab:
-          href: https://gitlab.{{ domain }}/
-          description: Git Repository Manager
-          icon: /icons/gitlab.svg
+        - GitLab:
+            href: https://gitlab.{{ domain }}/
+            description: Git Repository Manager
+            icon: /icons/gitlab.svg
 {% endif %}
 {% if deploy_gitea %}
-      - Gitea:
-          href: https://git.{{ domain }}/
-          description: Git Repository Manager
-          icon: /icons/git.svg
+        - Gitea:
+            href: https://git.{{ domain }}/
+            description: Git Repository Manager
+            icon: /icons/git.svg
 {% endif %}
-      - Longhorn:
-          href: https://longhorn.{{ domain }}/
-          description: Cloud Native Storage
-          icon: /icons/longhorn.svg
+        - Longhorn:
+            href: https://longhorn.{{ domain }}/
+            description: Cloud Native Storage
+            icon: /icons/longhorn.svg
 
-    - Monitoring:
-      - Prometheus:
-          href: https://prometheus.{{ domain }}/
-          description: Monitoring System
-          icon: /icons/prometheus.svg
+      - Monitoring:
+        - Prometheus:
+            href: https://prometheus.{{ domain }}/
+            description: Monitoring System
+            icon: /icons/prometheus.svg
 {% if deploy_grafana %}
-      - Grafana:
-          href: https://grafana.{{ domain }}/
-          description: Analytics & Monitoring
-          icon: /icons/grafana.svg
+        - Grafana:
+            href: https://grafana.{{ domain }}/
+            description: Analytics & Monitoring
+            icon: /icons/grafana.svg
 {% endif %}
-           
-    - Media:
+            
+      - Media:
 {% if deploy_jellyfin %}
-      - Jellyfin:
-          href: https://jellyfin.{{ domain }}
-          description: Media System
-          icon: /icons/jellyfin.svg
+        - Jellyfin:
+            href: https://jellyfin.{{ domain }}
+            description: Media System
+            icon: /icons/jellyfin.svg
 {% endif %}
 {% if deploy_audiobookshelf %}
-      - Audiobookshelf:
-          href: https://audiobookshelf.{{ domain }}
-          description: Self-hosted audiobook and podcast server
-          icon: /icons/bookstack.svg
+        - Audiobookshelf:
+            href: https://audiobookshelf.{{ domain }}
+            description: Self-hosted audiobook and podcast server
+            icon: /icons/bookstack.svg
 {% endif %}
 
-    - Apps:
+      - Apps:
 {% if deploy_homeassistant %}
-      - Home Assistant:
-          href: https://home.{{ domain }}/
-          description: Home Automation
-          icon: /icons/home-assistant.svg
+        - Home Assistant:
+            href: https://home.{{ domain }}/
+            description: Home Automation
+            icon: /icons/home-assistant.svg
 {% endif %}
-        
-  widgets:
-    - kubernetes:
-        cluster:
-          show: true
-          cpu: true
-          memory: true
-          showLabel: true
-          label: "cluster"
-        nodes:
-          show: true
-          cpu: true
-          memory: true
-          showLabel: true
-    - search:
-        provider: duckduckgo
-        target: _blank
-    - datetime:
-      text_size: xl
-      format:
-          timeStyle: short
-          hourCycle: h23
+          
+    widgets:
+      - kubernetes:
+          cluster:
+            show: true
+            cpu: true
+            memory: true
+            showLabel: true
+            label: "cluster"
+          nodes:
+            show: true
+            cpu: true
+            memory: true
+            showLabel: true
+      - search:
+          provider: duckduckgo
+          target: _blank
+      - datetime:
+        text_size: xl
+        format:
+            timeStyle: short
+            hourCycle: h23
 
-  kubernetes:
-    mode: cluster
-  settings:
-    title: Homepage
+    kubernetes:
+      mode: cluster
+    settings:
+      title: Homepage
 
-    background:
-      image: /icons/background.jpg
-      blur: sm 
-      saturate: 100 
-      brightness: 50
-      opacity: 100
+      background:
+        image: /icons/background.jpg
+        blur: sm 
+        saturate: 100 
+        brightness: 50
+        opacity: 100
 
-    theme: dark
-    color: slate
-    useEqualHeights: true
+      theme: dark
+      color: slate
+      useEqualHeights: true
 
-    layout:
-      Infrastructure:
-        icon: mdi-auto-fix-#FFFFFF
-      Monitoring:
-        icon: mdi-list-status-#FFFFFF
-      Media:
-        icon: mdi-auto-fix-#FFFFFF
-      Media Management:
-        icon: mdi-auto-fix-#FFFFFF
-        header: true
-        style: row
-        columns: 4
-      Apps:
-        icon: mdi-cog-play-#FFFFFF
-        header: true
+      layout:
+        Infrastructure:
+          icon: mdi-auto-fix-#FFFFFF
+        Monitoring:
+          icon: mdi-list-status-#FFFFFF
+        Media:
+          icon: mdi-auto-fix-#FFFFFF
+        Media Management:
+          icon: mdi-auto-fix-#FFFFFF
+          header: true
+          style: row
+          columns: 4
+        Apps:
+          icon: mdi-cog-play-#FFFFFF
+          header: true
 
 
-persistence:
-  icons:
-    enabled: true
-    type: pvc
-    mountPath: /app/public/icons
-    accessMode: ReadWriteOnce
-    size: 1Gi
-    storageClass: longhorn
+  persistence:
+    icons:
+      enabled: true
+      type: pvc
+      mountPath: /app/public/icons
+      accessMode: ReadWriteOnce
+      size: 1Gi
+      storageClass: longhorn
 
-serviceAccount:
-  create: true
-  name: homepage
+  serviceAccount:
+    create: true
+    name: homepage
 
-enableRbac: true
+  enableRbac: true
 
-ingress:
-  main:
-    enabled: true
-    className: traefik
-    annotations:
-      traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
-    hosts:
-      - host: homepage.{{ domain }}
-        paths:
-          - path: /
-            pathType: Prefix
-    tls:
-      - hosts:
-          - homepage.{{ domain }}
+  ingress:
+    main:
+      enabled: true
+      className: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+      hosts:
+        - host: homepage.{{ domain }}
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - hosts:
+            - homepage.{{ domain }}

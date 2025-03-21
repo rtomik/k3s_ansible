@@ -37,6 +37,12 @@
         version: "{{ openwebui_version }}"
         repo: "https://helm.openwebui.com/"
         namespace: "open-webui"
+      homepage:
+        enabled: "{{ deploy_homepage | default(false) }}"
+        chart_name: "homepage"
+        version: "{{ homepage_version }}"
+        repo: "https://jameswynn.github.io/helm-charts"
+        namespace: "homepage"
       # Template for adding new apps
       # new-app:
       #   enabled: "{{ deploy_new_app | default(false) }}"

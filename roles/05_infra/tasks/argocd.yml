@@ -153,8 +153,8 @@
         namespace: "metallb-system"
       prometheus:
         enabled: "{{ deploy_prometheus | default(false) }}"
-        chart_name: "kube-prometheus-stack"
-        version: "{{ prometheus_stack_version }}"
+        chart_name: "prometheus"
+        version: "{{ prometheus_version }}"
         repo: "https://prometheus-community.github.io/helm-charts"
         namespace: "monitoring"
       grafana:
