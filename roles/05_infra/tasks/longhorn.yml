@@ -93,6 +93,7 @@
         namespace: longhorn-system
         labels:
           name: longhorn-prometheus-servicemonitor
+          release: prometheus
       spec:
         selector:
           matchLabels:

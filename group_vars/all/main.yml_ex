@@ -85,7 +85,7 @@ jellyfin_version: 2.1.0
 homepage_version: 2.0.1
 reflector_version: 7.1.288
 audiobookshelf_version: 0.0.1
-prometheus_stack_version: 66.3.1
+prometheus_stack_version: 70.2.0
 grafana_version: 8.8.5
 loki_version: 6.24.1
 promtail_version: 6.16.5
