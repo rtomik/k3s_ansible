@@ -129,839 +129,164 @@
         profile_scope_uuid: "{{ scope_uuids.profile }}"
       when: deploy_authentik | bool
 
-- name: Authentik ArgoCD
-  vars:
-    authentik_api_url: "https://authentik.{{ domain }}/api/v3"
+- name: Configure apps
   when: deploy_authentik | bool
   block:
-    - name: Get existing certificate key pairs from Authentik
-      ansible.builtin.uri:
-        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: existing_cert_keypairs
-      until: existing_cert_keypairs.status == 200
-      retries: 3
-      delay: 10
-
-    - name: Set existing signing key fact if exists
+    - name: Define application configurations
       ansible.builtin.set_fact:
-        signing_key_pk: >-
-          {{
-            existing_cert_keypairs.json.results
-            | selectattr('name', 'equalto', 'ArgoCD Signing Key')
-            | list | first | default(None)
-          }}
-
-    - name: Create a signing key in Authentik if not already present
-      ansible.builtin.uri:
-        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/generate/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body:
-          common_name: "ArgoCD Signing Key"
-          validity_days: 5000
-          alg: "rsa"
-        body_format: json
-      register: create_signing_key_response
-      when: signing_key_pk is none
-
-    - name: Re-fetch certificate key pairs from Authentik after creation
-      ansible.builtin.uri:
-        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: keypairs_response
-      when: signing_key_pk is none
-
-    - name: Set signing key UID fact
-      ansible.builtin.set_fact:
-        signing_key_uid: >-
-          {{
-            (keypairs_response.json.results if signing_key_pk is none else existing_cert_keypairs.json.results)
-            | selectattr('name', 'equalto', 'ArgoCD Signing Key')
-            | list | first | default({}) | json_query('pk')
-          }}
-
-    - name: Check if OAuth2 Provider for ArgoCD exists
-      ansible.builtin.uri:
-        url: "{{ authentik_api_url }}/providers/oauth2/?name=Provider%20for%20ArgoCD"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_provider_response
-      until: check_provider_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_provider_response.status not in [200, 404]
-
-    - name: Set provider exists fact
-      ansible.builtin.set_fact:
-        provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-
-    - name: Create OAuth2 Provider for ArgoCD
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Provider for ArgoCD",
-            "slug": "provider-for-argocd",
-            "client_type": "confidential",
-            "authorization_flow": "{{ default_authorization_flow_id }}",
-            "invalidation_flow": "{{ default_invalidation_flow_id }}",
-            "property_mappings": [
-              "{{ email_scope_uuid }}",
-              "{{ openid_scope_uuid }}",
-              "{{ profile_scope_uuid }}"
-            ],
-            "redirect_uris": [
-              {
-                "matching_mode": "strict",
-                "url": "https://argocd.{{ domain }}/api/dex/callback"
-              },
-              {
-                "matching_mode": "strict",
-                "url": "http://localhost:8085/auth/callback"
-              }
-            ],
-            "access_code_validity": "minutes=1",
-            "refresh_token_validity": "days=30",
-            "id_token_validity": "minutes=60",
-            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}",
-            "signing_key": "{{ signing_key_uid }}"
-          }
-        body_format: json
-      register: create_provider_response
-      changed_when: create_provider_response.status == 201
-      failed_when: create_provider_response.status not in [200, 201]
-      when:
-        - not provider_exists
-
-    - name: Save client credentials
-      ansible.builtin.set_fact:
-        argocd_client_id: >-
-          {{
-            (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_id)
-          }}
-        argocd_client_secret: >-
-          {{
-            (check_provider_response.json.results[0].client_secret if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_secret)
-          }}
-        argocd_provider_id: >-
-          {{
-            (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
-              else create_provider_response.json.pk)
-          }}
-      when: deploy_authentik | bool
-
-    - name: Check if argocd namespace exists
-      kubernetes.core.k8s_info:
-        kind: Namespace
-        name: argocd
-      register: namespace_info
-      ignore_errors: true
-
-    - name: Create argocd namespace if it does not exist
-      kubernetes.core.k8s:
-        definition:
-          apiVersion: v1
-          kind: Namespace
-          metadata:
-            name: argocd
-      when: namespace_info.resources | length == 0
-
-    - name: Add user credentials to secret
-      kubernetes.core.k8s:
-        definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: argocd-authentik-credentials
+        authentik_api_url: "https://authentik.{{ domain }}/api/v3"
+        authentik_apps:
+          - name: ArgoCD
+            slug: argocd
             namespace: argocd
-          data:
-            authentik_client_id: "{{ argocd_client_id | b64encode }}"
-            authentik_client_secret: "{{ argocd_client_secret | b64encode }}"
+            deploy_condition: deploy_argocd | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://argocd.{{ domain }}/api/dex/callback"
+              - matching_mode: strict
+                url: "http://localhost:8085/auth/callback"
+            meta_launch_url: "https://argocd.{{ domain }}/auth/login"
+            open_in_new_tab: true
+            secret_name: argocd-authentik-credentials
+            sub_mode: null
+            signing_key: true
+            additional_config: []
 
-    - name: Check if ArgoCD application exists in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=argocd"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_app_response
-      until: check_app_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_app_response.status not in [200, 404]
+          - name: Grafana
+            slug: grafana
+            namespace: monitoring
+            deploy_condition: deploy_grafana | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: regex
+                url: "https://grafana.{{ domain }}/login/generic_oauth"
+            meta_launch_url: "https://grafana.{{ domain }}/"
+            open_in_new_tab: true
+            secret_name: grafana-authentik-credentials
+            sub_mode: null
+            signing_key: false
+            additional_config: []
 
-    - name: Set application exists fact
-      ansible.builtin.set_fact:
-        app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
+          - name: Tandoor-Recipes
+            slug: tandoor-recipes
+            namespace: tandoor
+            deploy_condition: deploy_tandoor | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://recipes.{{ domain }}/accounts/authentik/login/callback/"
+            meta_launch_url: "https://recipes.{{ domain }}/"
+            open_in_new_tab: true
+            secret_name: tandoor-authentik-credentials
+            sub_mode: user_email
+            signing_key: false
+            additional_config: []
 
-    - name: Create an ArgoCD application in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "ArgoCD",
-            "slug": "argocd",
-            "provider": "{{ argocd_provider_id }}",
-            "meta_launch_url": "https://argocd.{{ domain }}/auth/login",
-            "open_in_new_tab": true
-          }
-        body_format: json
-      register: create_app_response
-      changed_when: create_app_response.status == 201
-      failed_when: create_app_response.status not in [200, 201]
-      when:
-        - not app_exists
+          - name: Gitea
+            slug: gitea
+            namespace: gitea
+            deploy_condition: deploy_gitea | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://git.{{ domain }}/user/oauth2/authentik/callback"
+            meta_launch_url: "https://git.{{ domain }}/"
+            open_in_new_tab: true
+            secret_name: gitea-authentik-secret
+            sub_mode: user_email
+            signing_key: false
+            additional_config:
+              - name: gitea-authentik-secret
+                type: Opaque
+                format: stringData
+                template_type: gitea
 
-- name: Authentik Grafana
-  block:
-    - name: Check if OAuth2 Provider for Grafana exists
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20Grafana"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_provider_response
-      until: check_provider_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_provider_response.status not in [200, 404]
-      when: deploy_authentik | bool and deploy_grafana | bool
+          - name: Donetick
+            slug: donetick
+            namespace: donetick
+            deploy_condition: deploy_donetick | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://donetick.{{ domain }}/auth/oauth2"
+            meta_launch_url: "https://donetick.{{ domain }}/"
+            open_in_new_tab: true
+            secret_name: donetick-authentik-credentials
+            sub_mode: user_email
+            signing_key: false
+            additional_config: []
 
-    - name: Set provider exists fact
-      ansible.builtin.set_fact:
-        provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-      when: deploy_authentik | bool and deploy_grafana | bool
-
-    - name: Create OAuth2 Provider for Grafana
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Provider for Grafana",
-            "slug": "provider-for-grafana",
-            "client_type": "confidential",
-            "authorization_flow": "{{ default_authorization_flow_id }}",
-            "invalidation_flow": "{{ default_invalidation_flow_id }}",
-            "property_mappings": [
-              "{{ email_scope_uuid }}",
-              "{{ openid_scope_uuid }}",
-              "{{ profile_scope_uuid }}"
-            ],
-            "redirect_uris": [
-              {
-                "matching_mode": "regex",
-                "url": "https://grafana.{{ domain }}/login/generic_oauth"
-              }
-            ],
-            "access_code_validity": "minutes=1",
-            "refresh_token_validity": "days=30",
-            "id_token_validity": "minutes=60",
-            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
-          }
-        body_format: json
-      register: create_provider_response
-      changed_when: create_provider_response.status == 201
-      failed_when: create_provider_response.status not in [200, 201]
-      when:
-        - deploy_authentik | bool and deploy_grafana | bool and not provider_exists
-
-    - name: Save client credentials
-      ansible.builtin.set_fact:
-        grafana_client_id: >-
-          {{
-            (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_id)
-          }}
-        grafana_client_secret: >-
-          {{
-            (check_provider_response.json.results[0].client_secret if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_secret)
-          }}
-        grafana_provider_id: >-
-          {{
-            (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
-              else create_provider_response.json.pk)
-          }}
-      when: deploy_authentik | bool and deploy_grafana | bool
-
-    - name: Add client and client secret to secret in Monitoring namespace
+    - name: Handle signing key requirements
+      when: authentik_apps | selectattr('signing_key', 'equalto', true) | list | length > 0
       block:
-        - name: Check if Monitoring namespace exists
-          kubernetes.core.k8s_info:
-            kind: Namespace
-            name: monitoring
-          register: namespace_info
-          ignore_errors: true
-          when: deploy_authentik | bool
-        - name: Create Monitoring namespace if it does not exist
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Namespace
-              metadata:
-                name: monitoring
-          when: namespace_info.resources | length == 0 and deploy_authentik | bool
-        - name: Add user credentials to secret
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Secret
-              metadata:
-                name: grafana-authentik-credentials
-                namespace: monitoring
-              data:
-                authentik_client_id: "{{ grafana_client_id | b64encode }}"
-                authentik_client_secret: "{{ grafana_client_secret | b64encode }}"
-          when: deploy_authentik | bool
+        - name: Get existing certificate key pairs from Authentik
+          ansible.builtin.uri:
+            url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ vault_authentik_api_token }}"
+              Content-Type: "application/json"
+            return_content: true
+          register: existing_cert_keypairs
+          until: existing_cert_keypairs.status == 200
+          retries: 3
+          delay: 10
 
-    - name: Check if Grafana application exists in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=grafana"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_app_response
-      until: check_app_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_app_response.status not in [200, 404]
-      when: deploy_authentik | bool
+        - name: Set existing signing key fact if exists
+          ansible.builtin.set_fact:
+            signing_key_pk: >-
+              {{
+                existing_cert_keypairs.json.results
+                | selectattr('name', 'equalto', 'ArgoCD Signing Key')
+                | list | first | default(None)
+              }}
 
-    - name: Set application exists fact
+        - name: Create a signing key in Authentik if not already present
+          ansible.builtin.uri:
+            url: "{{ authentik_api_url }}/crypto/certificatekeypairs/generate/"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ vault_authentik_api_token }}"
+              Content-Type: "application/json"
+            body:
+              common_name: "ArgoCD Signing Key"
+              validity_days: 5000
+              alg: "rsa"
+            body_format: json
+          register: create_signing_key_response
+          when: signing_key_pk is none
+
+        - name: Re-fetch certificate key pairs from Authentik after creation
+          ansible.builtin.uri:
+            url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ vault_authentik_api_token }}"
+              Content-Type: "application/json"
+            return_content: true
+          register: keypairs_response
+          when: signing_key_pk is none
+
+        - name: Set signing key UID fact
+          ansible.builtin.set_fact:
+            signing_key_uid: >-
+              {{
+                (keypairs_response.json.results if signing_key_pk is none else existing_cert_keypairs.json.results)
+                | selectattr('name', 'equalto', 'ArgoCD Signing Key')
+                | list | first | default({}) | json_query('pk')
+              }}
+
+    - name: Filter active applications
       ansible.builtin.set_fact:
-        app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
-      when: deploy_authentik | bool
+        active_apps: "{{ authentik_apps | selectattr('deploy_condition', 'defined') | selectattr('deploy_condition') | list }}"
 
-    - name: Create an Grafana application in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Grafana",
-            "slug": "grafana",
-            "provider": "{{ grafana_provider_id }}",
-            "meta_launch_url": "https://grafana.{{ domain }}/",
-            "open_in_new_tab": true
-          }
-        body_format: json
-      register: create_app_response
-      changed_when: create_app_response.status == 201
-      failed_when: create_app_response.status not in [200, 201]
-      when:
-        - deploy_authentik | bool
-        - not app_exists
-
-- name: Authentik GitLab
-  when: deploy_authentik | bool and deploy_gitlab | bool
-  block:
-    - name: Check if OAuth2 Provider for GitLab exists
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20GitLab"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_provider_response
-      changed_when: false
-      failed_when: check_provider_response.status not in [200, 404]
-
-    - name: Set provider exists fact
-      ansible.builtin.set_fact:
-        provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-
-    - name: Create OAuth2 Provider for GitLab
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Provider for GitLab",
-            "slug": "provider-for-gitlab",
-            "client_type": "confidential",
-            "authorization_flow": "{{ default_authorization_flow_id }}",
-            "invalidation_flow": "{{ default_invalidation_flow_id }}",
-            "property_mappings": [
-              "{{ email_scope_uuid }}",
-              "{{ openid_scope_uuid }}",
-              "{{ profile_scope_uuid }}"
-            ],
-            "redirect_uris": [
-              {
-                "matching_mode": "strict",
-                "url": "https://gitlab.{{ domain }}/users/auth/openid_connect/callback"
-              }
-            ],
-            "sub_mode": "user_email",
-            "access_code_validity": "minutes=1",
-            "refresh_token_validity": "days=30",
-            "id_token_validity": "minutes=60",
-            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
-          }
-        body_format: json
-      register: create_provider_response
-      changed_when: create_provider_response.status == 201
-      failed_when: create_provider_response.status not in [200, 201]
-      when:
-        - not provider_exists
-
-    - name: Save client credentials
-      ansible.builtin.set_fact:
-        gitlab_client_id: >-
-          {{
-            (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_id)
-          }}
-        gitlab_client_secret: >-
-          {{
-            (check_provider_response.json.results[0].client_secret if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_secret)
-          }}
-        gitlab_provider_id: >-
-          {{
-            (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
-              else create_provider_response.json.pk)
-          }}
-
-    - name: Check if GitLab application exists in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=gitlab"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_app_response
-      changed_when: false
-      failed_when: check_app_response.status not in [200, 404]
-
-    - name: Set application exists fact
-      ansible.builtin.set_fact:
-        app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
-
-    - name: Create an GitLab application in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "GitLab",
-            "slug": "gitlab",
-            "provider": "{{ gitlab_provider_id }}",
-            "meta_launch_url": "https://gitlab.{{ domain }}/auth/login",
-            "open_in_new_tab": true
-          }
-        body_format: json
-      register: create_app_response
-      changed_when: create_app_response.status == 201
-      failed_when: create_app_response.status not in [200, 201]
-      when:
-        - not app_exists
-
-    - name: Add client and client secret to secret in GitLab namespace
-      block:
-        - name: Check if GitLab namespace exists
-          kubernetes.core.k8s_info:
-            kind: Namespace
-            name: gitlab
-          register: namespace_info
-          ignore_errors: true
-          when: deploy_authentik | bool and deploy_gitlab | bool
-        - name: Create GitLab namespace if it does not exist
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Namespace
-              metadata:
-                name: gitlab
-          when: namespace_info.resources | length == 0 and deploy_authentik | bool
-        - name: Add user credentials to secret
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Secret
-              metadata:
-                name: gitlab-authentik-credentials
-                namespace: gitlab
-              data:
-                authentik_client_id: "{{ gitlab_client_id | b64encode }}"
-                authentik_client_secret: "{{ gitlab_client_secret | b64encode }}"
-          when: deploy_authentik | bool and deploy_gitlab | bool
-        - name: Add GitLab OAuth configuration secret
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Secret
-              metadata:
-                name: gitlab-authentik-oauth2
-                namespace: gitlab
-              type: Opaque
-              stringData:
-                provider: |
-                  name: openid_connect
-                  label: Authentik
-                  args:
-                    name: openid_connect
-                    scope: ["openid", "profile", "email"]
-                    response_type: code
-                    issuer: https://authentik.{{ domain }}/application/o/gitlab/
-                    discovery: true
-                    client_auth_method: query
-                    uid_field: preferred_username
-                    send_scope_to_token_endpoint: true
-                    pkce: false
-                    client_options:
-                      identifier: "{{ gitlab_client_id }}"
-                      secret: "{{ gitlab_client_secret }}"
-                      redirect_uri: https://gitlab.{{ domain }}/users/auth/openid_connect/callback
-
-- name: Authentik Tandoor
-  when: deploy_authentik | bool and deploy_tandoor | bool
-  block:
-    - name: Check if OAuth2 Provider for Tandoor exists
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20Tandoor"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_provider_response
-      until: check_provider_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_provider_response.status not in [200, 404]
-
-    - name: Set provider exists fact
-      ansible.builtin.set_fact:
-        provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
-
-    - name: Create OAuth2 Provider for Tandoor
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Provider for Tandoor",
-            "slug": "provider-for-tandoor",
-            "client_type": "confidential",
-            "authorization_flow": "{{ default_authorization_flow_id }}",
-            "invalidation_flow": "{{ default_invalidation_flow_id }}",
-            "property_mappings": [
-              "{{ email_scope_uuid }}",
-              "{{ openid_scope_uuid }}",
-              "{{ profile_scope_uuid }}"
-            ],
-            "redirect_uris": [
-              {
-                "matching_mode": "strict",
-                "url": "https://recipes.{{ domain }}/accounts/authentik/login/callback/"
-              }
-            ],
-            "sub_mode": "user_email",
-            "access_code_validity": "minutes=1",
-            "refresh_token_validity": "days=30",
-            "id_token_validity": "minutes=60",
-            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
-          }
-        body_format: json
-      register: create_provider_response
-      changed_when: create_provider_response.status == 201
-      failed_when: create_provider_response.status not in [200, 201]
-      when: not provider_exists
-
-    - name: Save client credentials
-      ansible.builtin.set_fact:
-        tandoor_client_id: >-
-          {{
-            (check_provider_response.json.results[0].client_id if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_id)
-          }}
-        tandoor_client_secret: >-
-          {{
-            (check_provider_response.json.results[0].client_secret if check_provider_response.json.results | length > 0
-              else create_provider_response.json.client_secret)
-          }}
-        tandoor_provider_id: >-
-          {{
-            (check_provider_response.json.results[0].pk if check_provider_response.json.results | length > 0
-              else create_provider_response.json.pk)
-          }}
-
-    - name: Check if Tandoor application exists in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=tandoor-recipes"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_app_response
-      until: check_app_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_app_response.status not in [200, 404]
-
-    - name: Set application exists fact
-      ansible.builtin.set_fact:
-        app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
-
-    - name: Create Tandoor application in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Tandoor-Recipes",
-            "slug": "tandoor-recipes",
-            "provider": "{{ tandoor_provider_id }}",
-            "meta_launch_url": "https://recipes.{{ domain }}/",
-            "open_in_new_tab": true,
-            "policy_engine_mode": "any"
-          }
-        body_format: json
-      register: create_app_response
-      changed_when: create_app_response.status == 201
-      failed_when: create_app_response.status not in [200, 201]
-      when: not app_exists
-
-    - name: Add client and client secret to secret in Tandoor namespace
-      block:
-        - name: Check if Tandoor namespace exists
-          kubernetes.core.k8s_info:
-            kind: Namespace
-            name: tandoor
-          register: namespace_info
-          ignore_errors: true
-
-        - name: Create Tandoor namespace if it does not exist
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Namespace
-              metadata:
-                name: tandoor
-          when: namespace_info.resources | length == 0
-
-        - name: Add Authentik OAuth credentials to secret
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Secret
-              metadata:
-                name: tandoor-authentik-credentials
-                namespace: tandoor
-              type: Opaque
-              stringData:
-                AUTHENTIK_CLIENT_ID: "{{ tandoor_client_id }}"
-                AUTHENTIK_CLIENT_SECRET: "{{ tandoor_client_secret }}"
-                AUTHENTIK_ISSUER: "https://authentik.{{ domain }}/application/o/tandoor-recipes/"
-                AUTHENTIK_CALLBACK_URL: "https://recipes.{{ domain }}/accounts/authentik/login/callback/"
-
-- name: Authentik Gitea
-  when: deploy_authentik | bool and deploy_gitea | bool
-  block:
-    - name: Check if OAuth2 Provider for Gitea exists
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/?name=Provider%20for%20Gitea"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_gitea_provider_response
-      until: check_gitea_provider_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_gitea_provider_response.status not in [200, 404]
-
-    - name: Set Gitea provider exists fact
-      ansible.builtin.set_fact:
-        gitea_provider_exists: "{{ check_gitea_provider_response.json.pagination.count > 0 if check_gitea_provider_response.status == 200 else false }}"
-
-    - name: Create OAuth2 Provider for Gitea
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/providers/oauth2/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Provider for Gitea",
-            "slug": "provider-for-gitea",
-            "client_type": "confidential",
-            "authorization_flow": "{{ default_authorization_flow_id }}",
-            "invalidation_flow": "{{ default_invalidation_flow_id }}",
-            "property_mappings": [
-              "{{ email_scope_uuid }}",
-              "{{ openid_scope_uuid }}",
-              "{{ profile_scope_uuid }}"
-            ],
-            "redirect_uris": [
-              {
-                "matching_mode": "strict",
-                "url": "https://git.{{ domain }}/user/oauth2/authentik/callback"
-              }
-            ],
-            "sub_mode": "user_email",
-            "access_code_validity": "minutes=1",
-            "refresh_token_validity": "days=30",
-            "id_token_validity": "minutes=60",
-            "client_id": "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}",
-            "client_secret": "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
-          }
-        body_format: json
-      register: create_gitea_provider_response
-      changed_when: create_gitea_provider_response.status == 201
-      failed_when: create_gitea_provider_response.status not in [200, 201]
-      when: not gitea_provider_exists
-    - name: Save Gitea client credentials
-      ansible.builtin.set_fact:
-        gitea_client_id: >-
-          {{
-            (check_gitea_provider_response.json.results[0].client_id if check_gitea_provider_response.json.results | length > 0
-              else create_gitea_provider_response.json.client_id)
-          }}
-        gitea_client_secret: >-
-          {{
-            (check_gitea_provider_response.json.results[0].client_secret if check_gitea_provider_response.json.results | length > 0
-              else create_gitea_provider_response.json.client_secret)
-          }}
-        gitea_provider_id: >-
-          {{
-            (check_gitea_provider_response.json.results[0].pk if check_gitea_provider_response.json.results | length > 0
-              else create_gitea_provider_response.json.pk)
-          }}
-    - name: Check if Gitea application exists in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/?slug=gitea"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        return_content: true
-      register: check_gitea_app_response
-      until: check_gitea_app_response.status == 200
-      retries: 3
-      delay: 10
-      changed_when: false
-      failed_when: check_gitea_app_response.status not in [200, 404]
-
-    - name: Set Gitea application exists fact
-      ansible.builtin.set_fact:
-        gitea_app_exists: "{{ check_gitea_app_response.json.pagination.count > 0 if check_gitea_app_response.status == 200 else false }}"
-
-    - name: Create Gitea application in Authentik
-      ansible.builtin.uri:
-        url: "https://authentik.{{ domain }}/api/v3/core/applications/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ vault_authentik_api_token }}"
-          Content-Type: "application/json"
-        body: |
-          {
-            "name": "Gitea",
-            "slug": "gitea",
-            "provider": "{{ gitea_provider_id }}",
-            "meta_launch_url": "https://git.{{ domain }}/",
-            "open_in_new_tab": true,
-            "policy_engine_mode": "any"
-          }
-        body_format: json
-      register: create_gitea_app_response
-      changed_when: create_gitea_app_response.status == 201
-      failed_when: create_gitea_app_response.status not in [200, 201]
-      when: not gitea_app_exists
-
-    - name: Add Gitea OAuth credentials to secret in Gitea namespace
-      block:
-        - name: Check if Gitea namespace exists
-          kubernetes.core.k8s_info:
-            kind: Namespace
-            name: gitea
-          register: gitea_namespace_info
-          ignore_errors: true
-
-        - name: Create Gitea namespace if it does not exist
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Namespace
-              metadata:
-                name: gitea
-          when: gitea_namespace_info.resources | length == 0
-
-        - name: Add Authentik OAuth credentials to secret
-          kubernetes.core.k8s:
-            definition:
-              apiVersion: v1
-              kind: Secret
-              metadata:
-                name: gitea-authentik-secret
-                namespace: gitea
-              type: Opaque
-              stringData:
-                key: "{{ gitea_client_id }}"
-                secret: "{{ gitea_client_secret }}"
+    # Process each application one by one with a different approach to avoid file creation
+    - name: Process each application
+      ansible.builtin.include_tasks:
+        file: authentik_process_app.yml
+      vars:
+        app: "{{ item }}"
+      loop: "{{ active_apps }}"
+      loop_control:
+        label: "{{ item.name }}"

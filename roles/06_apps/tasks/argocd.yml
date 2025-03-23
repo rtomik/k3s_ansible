@@ -43,6 +43,12 @@
         version: "{{ homepage_version }}"
         repo: "https://jameswynn.github.io/helm-charts"
         namespace: "homepage"
+      donetick:
+        enabled: "{{ deploy_donetick | default(false) }}"
+        chart_name: "donetick"
+        version: "{{ donetick_version }}"
+        repo: "https://rtomik.github.io/helm-charts"
+        namespace: "donetick"
       # Template for adding new apps
       # new-app:
       #   enabled: "{{ deploy_new_app | default(false) }}"
