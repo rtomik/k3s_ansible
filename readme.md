@@ -58,8 +58,8 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
   - [Low-cost mini PC options](https://www.lowcostminipcs.com/)
 
 - **My Setup:**
-  - HP ProDesk 600 G3 mini - i3 7300t/16GB RAM/500GB SSD cost 65 euro
-  - GenMachine Mini PC - AMD 5300U/16GB RAM/500GB SSD cost 200 euro
+  - HP ProDesk 600 G3 mini - i3 7300t/16GB RAM/500GB SSD cost 65 €
+  - GenMachine Mini PC - AMD 5300U/16GB RAM/500GB SSD cost 150 €
 
 ### Network Requirements
 - SSH access to all nodes (root SSH keys)
