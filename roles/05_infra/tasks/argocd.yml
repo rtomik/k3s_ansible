@@ -151,12 +151,20 @@
         version: "{{ metallb_version }}"
         repo: "https://metallb.github.io/metallb"
         namespace: "metallb-system"
-      prometheus:
+      kube-prometheus-stack:
         enabled: "{{ deploy_prometheus | default(false) }}"
-        chart_name: "prometheus"
-        version: "{{ prometheus_version }}"
+        chart_name: "kube-prometheus-stack"
+        version: "{{ prometheus_stack_version }}"
         repo: "https://prometheus-community.github.io/helm-charts"
         namespace: "monitoring"
+        skip_crds: "true"
+      prometheus-operator-crds:
+        enabled: "{{ deploy_prometheus | default(false) }}"
+        chart_name: "prometheus-operator-crds"
+        version: "19.0.0"
+        repo: "https://prometheus-community.github.io/helm-charts"
+        namespace: "monitoring"
+        server_side: "true"
       grafana:
         enabled: "{{ deploy_grafana | default(false) }}"
         chart_name: "grafana"
@@ -249,6 +257,9 @@
             namespace: argocd
           spec:
             project: default
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: {{ item.value.namespace }}
             source:
               repoURL: https://git.{{ domain }}/{{ git_organization_name }}/{{ git_repo_name }}.git
               targetRevision: HEAD
@@ -256,15 +267,18 @@
               helm:
                 valueFiles:
                   - values.yaml
-            destination:
-              server: https://kubernetes.default.svc
-              namespace: {{ item.value.namespace }}
+          {% if item.value.skip_crds is defined and item.value.skip_crds | bool %}
+                skipCrds: true
+          {% endif %}
             syncPolicy:
               automated:
                 prune: true
                 selfHeal: true
               syncOptions:
                 - CreateNamespace=true
+          {% if item.value.server_side is defined and item.value.server_side | bool %}
+                - ServerSideApply=true
+          {% endif %}
       loop: "{{ enabled_apps }}"
 
     - name: Push to Git repo

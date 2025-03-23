@@ -22,12 +22,7 @@ enable_cloudflare: true
 cloudflare_api_token: <Cloudflare API Token>
 tls_secret_name: "wildcard-{{ domain }}-tls"
 
-# Git
-# Choose your git repo
-# Options:
-# 1. Selfhosted GitLab
-# 2. Selfhosted Gitea
-# 3. github.com public/private repo
+# Git config
 deploy_gitea: true
 git_organization_name: "homelab"
 git_repo_name: "argocd"
@@ -49,6 +44,7 @@ deploy_open_webui: true
 deploy_jellyfin: true
 deploy_arr_stack: false
 deploy_homepage: true
+deploy_gitlab: false
 
 # ----- Optional variables --------- #
 
