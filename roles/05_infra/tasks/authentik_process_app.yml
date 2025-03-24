@@ -1,7 +1,7 @@
 ---
 # authentik_process_app.yml - Processing for a single Authentik application
 
-- name: "Check if OAuth2 Provider for {{ app.name }} exists"
+- name: "Check if OAuth2 Provider exists for {{ app.name }}"
   ansible.builtin.uri:
     url: "{{ authentik_api_url }}/providers/oauth2/?name=Provider%20for%20{{ app.name | urlencode }}"
     method: GET
@@ -77,14 +77,14 @@
           else create_provider_response.json.pk)
       }}
 
-- name: "Check if {{ app.name }} namespace exists"
+- name: "Check if namespace exists for {{ app.name }}"
   kubernetes.core.k8s_info:
     kind: Namespace
     name: "{{ app.namespace }}"
   register: namespace_info
   ignore_errors: true
 
-- name: "Create {{ app.name }} namespace if it does not exist"
+- name: "Create namespace {{ app.name }}"
   kubernetes.core.k8s:
     definition:
       apiVersion: v1
@@ -93,7 +93,7 @@
         name: "{{ app.namespace }}"
   when: namespace_info.resources | length == 0
 
-- name: "Add user credentials to {{ app.secret_name }} secret"
+- name: "Add user credentials to secret {{ app.secret_name }}"
   kubernetes.core.k8s:
     definition:
       apiVersion: v1
@@ -145,7 +145,7 @@
   ansible.builtin.set_fact:
     app_exists: "{{ check_app_response.json.pagination.count > 0 if check_app_response.status == 200 else false }}"
 
-- name: "Create {{ app.name }} application in Authentik"
+- name: "Create Authentik application {{ app.name }}"
   ansible.builtin.uri:
     url: "{{ authentik_api_url }}/core/applications/"
     method: POST

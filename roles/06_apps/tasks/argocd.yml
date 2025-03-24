@@ -49,6 +49,12 @@
         version: "{{ donetick_version }}"
         repo: "https://rtomik.github.io/helm-charts"
         namespace: "donetick"
+      jellyfin:
+        enabled: "{{ deploy_jellyfin | default(false) }}"
+        chart_name: "jellyfin"
+        version: "{{ jellyfin_version }}"
+        repo: "https://jellyfin.github.io/jellyfin-helm"
+        namespace: "jellyfin"
       # Template for adding new apps
       # new-app:
       #   enabled: "{{ deploy_new_app | default(false) }}"

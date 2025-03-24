@@ -33,16 +33,14 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 - 📊 Comprehensive monitoring and logging stack
 - 🔐 Integrated SSO with Authentik
 - 💾 Distributed storage with Longhorn
-- 📝 Centralized logging with Loki
 - 📈 Pre-configured Grafana dashboards for:
   - Application logs and metrics
   - Error monitoring
   - System performance
   - Storage metrics
-- 🛡️ Configuration drift detection and automated remediation
-- 📜 Audit trail of all configuration changes
 - 🔄 High availability cluster configuration
 - 🔒 TLS encryption for all services with automatic certificate management
+- 🔒 Secured Access remotely via Tailscale 
 
 ## Prerequisites
 
