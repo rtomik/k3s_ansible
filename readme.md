@@ -24,7 +24,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 | GitOps & Management | - ArgoCD (GitOps CD)<br>- Rancher (Kubernetes Management)<br>- GitLab (Source Control) |
 | Security | - Authentik (SSO/IAM) |
 | Monitoring Stack | - Prometheus (Metrics)<br>- Grafana (Visualization)<br>- Loki (Log Aggregation) |
-| Additional | - Homepage (Dashboard) |
+| Additional | - Homepage (Dashboard)<br>- Jellyfin (Media server)<br>- Donetick (Task management) |
 
 ## Features
 
@@ -139,6 +139,14 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 | GitLab | `https://gitlab.<domain>` | Source Control |
 | Homepage | `https://home.<domain>` | System Dashboard |
 
+
+## Authentik
+
+### Jellyfin
+
+   - Follow this guide [Authentik docs](https://docs.goauthentik.io/integrations/services/jellyfin/)   
+   - In plugin settings add Roles: user admin authentik Admins
+   - Admin Roles: admin authentik Admins
 
 ## Troubleshooting
 

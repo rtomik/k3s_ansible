@@ -217,6 +217,21 @@
             signing_key: false
             additional_config: []
 
+          - name: Jellyfin
+            slug: jellyfin
+            namespace: jellyfin
+            deploy_condition: deploy_jellyfin | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://jellyfin.{{ domain }}/sso/OID/redirect/authentik"
+            meta_launch_url: "https://jellyfin.{{ domain }}/sso/OID/start/authentik"
+            open_in_new_tab: true
+            secret_name: jellyfin-authentik-credentials
+            sub_mode: user_email
+            signing_key: true
+            additional_config: []
+
     - name: Handle signing key requirements
       when: authentik_apps | selectattr('signing_key', 'equalto', true) | list | length > 0
       block:
