@@ -20,14 +20,6 @@
         admin-password: "{{ grafana_admin_password | b64encode }}"
   when: deploy_grafana | bool
 
-- name: Create dashboard directory
-  delegate_to: localhost
-  ansible.builtin.file:
-    path: "{{ playbook_dir }}/../roles/05_infra/grafana/files/dashboards"
-    state: directory
-    mode: '0755'
-  when: deploy_grafana | bool
-
 - name: Create Grafana dashboards ConfigMap
   kubernetes.core.k8s:
     state: present

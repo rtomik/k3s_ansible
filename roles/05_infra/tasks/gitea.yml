@@ -108,36 +108,85 @@
 - name: Configure Gitea
   when: deploy_gitea | bool
   block:
+    # Initialize all variables to prevent undefined errors
+    - name: Initialize variables
+      ansible.builtin.set_fact:
+        argocd_token_exists: false
+        argocd_token_valid: false
+        gitea_api_token: ""
+
+    # First check if token exists in ArgoCD namespace
+    - name: Check for existing API token in ArgoCD namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: gitea-api-token
+        namespace: argocd
+      register: argocd_token_secret
+      ignore_errors: true
+
+    - name: Set fact if token exists in ArgoCD namespace
+      ansible.builtin.set_fact:
+        argocd_token_exists: "{{ argocd_token_secret.resources is defined and argocd_token_secret.resources | length > 0 }}"
+
+    - name: Extract token from ArgoCD secret if it exists
+      ansible.builtin.set_fact:
+        existing_argocd_token: "{{ argocd_token_secret.resources[0].data.api_token | b64decode }}"
+      when: argocd_token_exists
+      no_log: true
+
     - name: Wait for Gitea API to be available
       ansible.builtin.uri:
         url: "https://git.{{ domain }}/api/v1/version"
         method: GET
-        status_code: 200
+        status_code: [200, 404, 503]
       register: gitea_api_check
       retries: 10
       delay: 30
       until: gitea_api_check.status == 200
 
-    - name: Check if API token already exists
+    # Validate existing token from ArgoCD if it exists
+    - name: Validate existing ArgoCD token
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/user"
+        method: GET
+        headers:
+          Authorization: "token {{ existing_argocd_token }}"
+        status_code: [200, 401, 404]
+      register: token_validation
+      failed_when: false
+      when: argocd_token_exists
+      no_log: true
+
+    - name: Set token validity fact
+      ansible.builtin.set_fact:
+        argocd_token_valid: "{{ (token_validation is defined and token_validation.status is defined and token_validation.status == 200) | bool }}"
+
+    # Create a new API token if:
+    # 1. No valid token exists in ArgoCD namespace
+    - name: Check for existing tokens in Gitea
       ansible.builtin.uri:
         url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
         method: GET
         url_username: "admin"
         url_password: "{{ gitea_admin_password }}"
         force_basic_auth: true
-        status_code: 200
+        status_code: [200, 401, 404]
       register: existing_tokens
-      ignore_errors: true
+      failed_when: false
+      when: not argocd_token_valid
+      no_log: true
 
     - name: Set token exists flag
       ansible.builtin.set_fact:
-        token_exists: "{{ existing_tokens.status == 200 and (existing_tokens.json | selectattr('name', 'equalto', 'Ansible API') | list | length > 0) }}"
+        token_exists_in_gitea: "{{ (existing_tokens is defined and existing_tokens.status is defined and existing_tokens.status == 200 and existing_tokens.json is defined and (existing_tokens.json | selectattr('name', 'equalto', 'Ansible API') | list | length > 0)) | bool }}"
+      when: not argocd_token_valid and existing_tokens is defined
 
-    - name: Extract existing token if available
+    - name: Extract existing token value from Gitea
       ansible.builtin.set_fact:
-        existing_api_token: "{{ (existing_tokens.json | selectattr('name', 'equalto', 'Ansible API') | list | first).sha1 }}"
-      when: token_exists | bool
-      ignore_errors: true
+        existing_gitea_token: "{{ (existing_tokens.json | selectattr('name', 'equalto', 'Ansible API') | list | first).sha1 }}"
+      when: not argocd_token_valid and token_exists_in_gitea | default(false) and existing_tokens.json is defined
+      no_log: true
 
     - name: Create access token for automation
       ansible.builtin.uri:
@@ -149,17 +198,40 @@
         body_format: json
         body:
           name: "Ansible API"
-          scopes: ["write:repository", "write:organization"]
-        status_code: 201
-      register: gitea_token
-      when: not token_exists | default(false)
-
-    - name: Store Gitea API token
-      ansible.builtin.set_fact:
-        gitea_api_token: "{{ existing_api_token | default(gitea_token.json.sha1) | default(lookup('env', 'GITEA_API_TOKEN')) }}"
+          scopes: ["write:repository", "write:organization", "read:user"]
+        status_code: [201, 422]
+      register: gitea_token_result
+      when: not argocd_token_valid and not token_exists_in_gitea | default(false)
+      failed_when: false
       no_log: true
 
-    - name: Create argocd namespace
+    # Set the API token - either use the existing valid ArgoCD token,
+    # or set a new one based on what we found/created
+    - name: Set API token from ArgoCD
+      ansible.builtin.set_fact:
+        gitea_api_token: "{{ existing_argocd_token }}"
+      when: argocd_token_exists and argocd_token_valid
+      no_log: true
+
+    - name: Set API token from existing Gitea token
+      ansible.builtin.set_fact:
+        gitea_api_token: "{{ existing_gitea_token }}"
+      when: not argocd_token_valid and token_exists_in_gitea | default(false) and existing_gitea_token is defined
+      no_log: true
+
+    - name: Set API token from newly created token
+      ansible.builtin.set_fact:
+        gitea_api_token: "{{ gitea_token_result.json.sha1 }}"
+      when: >
+        not argocd_token_valid and
+        not token_exists_in_gitea | default(false) and
+        gitea_token_result is defined and
+        gitea_token_result.json is defined and
+        gitea_token_result.json.sha1 is defined
+      no_log: true
+
+    # Create argocd namespace
+    - name: Create argocd namespace if not exists
       kubernetes.core.k8s:
         state: present
         definition:
@@ -168,6 +240,9 @@
           metadata:
             name: argocd
 
+    # Only update the ArgoCD token if:
+    # 1. No token exists in ArgoCD namespace, OR
+    # 2. The token exists but is invalid AND we have a new valid token
     - name: Add gitea token to secret in argocd namespace
       kubernetes.core.k8s:
         state: present
@@ -180,6 +255,16 @@
           type: Opaque
           data:
             api_token: "{{ gitea_api_token | b64encode }}"
+      when: >
+        (not argocd_token_exists or not argocd_token_valid) and
+        gitea_api_token is defined and gitea_api_token | length > 0
+
+    # Ensure we have a non-empty token for the rest of the tasks
+    - name: Ensure token is valid for organization creation
+      ansible.builtin.set_fact:
+        gitea_api_token: "{{ existing_argocd_token | default('') }}"
+      when: gitea_api_token is not defined or gitea_api_token | length == 0
+      no_log: true
 
     - name: Check if organization exists
       ansible.builtin.uri:
@@ -201,11 +286,11 @@
         body:
           username: "{{ git_organization_name }}"
           full_name: "{{ git_organization_name }}"
-          description: "Organization for k3s deployemnt"
+          description: "Organization for k3s deployment"
           visibility: "public"
         status_code: [201, 422]
       register: org_result
-      when: org_check.status == 404
+      when: org_check.status is defined and org_check.status == 404
 
     - name: Check if repository exists
       ansible.builtin.uri:
@@ -231,4 +316,4 @@
           auto_init: true
         status_code: [201, 422]
       register: repo_result
-      when: repo_check.status == 404
+      when: repo_check.status is defined and repo_check.status == 404

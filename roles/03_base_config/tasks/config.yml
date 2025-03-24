@@ -1,18 +1,29 @@
 ---
-# Packages
+# Purpose: Base server configuration for security, system settings, and general hardening
+# This file configures essential system settings for all nodes in the cluster
 
+
+# System Package Management
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
+  tags:
+    - packages
+    - system
 
-- name: Upgrade all packages
-  apt:
+- name: Upgrade all packages for security
+  ansible.builtin.apt:
     upgrade: true
+    update_cache: true
   when: perform_full_upgrade | default(false)
+  register: package_upgrade
+  tags:
+    - packages
+    - security
 
 - name: Install required packages
-  apt:
+  ansible.builtin.apt:
     name:
       - curl
       - apt-transport-https
@@ -23,35 +34,64 @@
       - python3-kubernetes
       - python3-yaml
       - python3-venv
+      - apparmor
+      - apparmor-utils
+      - unattended-upgrades
+      - auditd
+      - htop
+      - iotop
+      - tcpdump
     state: present
+    install_recommends: false  # Minimize installation footprint
+  register: package_install
+  tags:
+    - packages
+    - system
 
-# Time
-
+# Time Synchronization
 - name: Set timezone
   community.general.timezone:
     name: "{{ timezone }}"
+  tags:
+    - time
+    - system
 
 - name: Install chrony
   ansible.builtin.apt:
     name: chrony
     state: present
+  tags:
+    - time
+    - system
 
 - name: Configure chrony
-  template:
+  ansible.builtin.template:
     src: chrony.conf.j2
     dest: /etc/chrony/chrony.conf
     mode: '0644'
+    owner: root
+    group: root
+    validate: '/usr/sbin/chronyc -n -c sourcestats'  # Validate config before applying
   notify: Restart chrony
+  tags:
+    - time
+    - system
 
 - name: Enable and start chrony service
   ansible.builtin.systemd:
     name: chronyd
     state: started
     enabled: true
+  tags:
+    - time
+    - system
 
 - name: Ensure system clock is synchronized
   ansible.builtin.command: chronyc makestep
   changed_when: false
+  tags:
+    - time
+    - system
 
 # SSH
 
@@ -83,6 +123,26 @@
     line: 'ClientAliveCountMax 3'
   notify: Restart ssh
 
+# System Security Hardening
+- name: Configure fail2ban
+  ansible.builtin.blockinfile:
+    path: /etc/fail2ban/jail.local
+    create: true
+    mode: '0644'
+    block: |
+      [DEFAULT]
+      bantime = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+      bantime = 3h
+  notify: Restart fail2ban
 
 - name: Enable fail2ban
   ansible.builtin.service:
@@ -90,23 +150,30 @@
     state: started
     enabled: true
 
-- name: Set up automatic security updates
-  apt:
-    name: unattended-upgrades
-    state: present
-
 - name: Configure automatic security updates
-  template:
+  ansible.builtin.template:
     src: 20auto-upgrades.j2
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     mode: '0644'
+    owner: root
+    group: root
 
-- name: Disable IPv6
-  sysctl:
-    name: net.ipv6.conf.all.disable_ipv6
-    value: '1'
-    state: present
-  when: disable_ipv6 | default(false)
+- name: Configure unattended-upgrades for security
+  ansible.builtin.blockinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    create: true
+    block: |
+      Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}";
+        "${distro_id}:${distro_codename}-security";
+        "${distro_id}ESMApps:${distro_codename}-apps-security";
+        "${distro_id}ESM:${distro_codename}-infra-security";
+      };
+      Unattended-Upgrade::Package-Blacklist {};
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Automatic-Reboot-Time "02:00";
 
 - name: Harden sysctl settings
   sysctl:
