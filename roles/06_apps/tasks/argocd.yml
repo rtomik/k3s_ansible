@@ -55,6 +55,19 @@
         version: "{{ jellyfin_version }}"
         repo: "https://jellyfin.github.io/jellyfin-helm"
         namespace: "jellyfin"
+      tandoor:
+        enabled: "{{ deploy_tandoor | default(false) }}"
+        chart_name: "tandoor"
+        version: "0.9.9"
+        repo: "https://charts.gabe565.com"
+        namespace: "tandoor"
+      paperless-ngx:
+        enabled: "{{ deploy_paperless_ngx | default(false) }}"
+        chart_name: "paperless-ngx"
+        version: "{{ paperless_ngx_version }}"
+        repo: "https://charts.gabe565.com"
+        namespace: "paperless-ngx"
+
       # Template for adding new apps
       # new-app:
       #   enabled: "{{ deploy_new_app | default(false) }}"

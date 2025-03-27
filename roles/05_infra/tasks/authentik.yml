@@ -56,7 +56,7 @@
         return_content: true
       register: flow_instances_response
       until: flow_instances_response.status == 200
-      retries: 3
+      retries: 10
       delay: 10
       changed_when: false
       failed_when: flow_instances_response.status not in [200]

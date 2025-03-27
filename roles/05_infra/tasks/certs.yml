@@ -26,6 +26,8 @@
         nameservers:
           - 1.1.1.1
           - 9.9.9.9
+    wait: true
+    wait_timeout: 5m
   when: cert_manager_check.resources | length == 0
 
 - name: Wait for cert-manager webhook to be ready
@@ -35,7 +37,7 @@
     name: cert-manager-webhook
     namespace: cert-manager
   register: webhook_deployment
-  until: 
+  until:
     - webhook_deployment.resources | length > 0
     - webhook_deployment.resources[0].status.availableReplicas is defined
     - webhook_deployment.resources[0].status.availableReplicas > 0
@@ -48,6 +50,8 @@
     chart_ref: emberstack/reflector
     chart_version: "{{ reflector_version }}"
     release_namespace: cert-manager
+    wait: true
+    wait_timeout: 3m
   when: enable_cloudflare | bool
 
 - name: Add cloudflare api token to secret
@@ -149,3 +153,40 @@
   when:
     - enable_cloudflare | bool
     - certificate_check.resources | length == 0
+
+- name: Wait for certificate to be ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: wildcard-{{ domain }}
+    namespace: cert-manager
+  register: cert_status
+  until:
+    - cert_status.resources | length > 0
+    - cert_status.resources[0].status is defined
+    - cert_status.resources[0].status.conditions is defined
+    - cert_status.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: 10
+  delay: 30
+  when: enable_cloudflare | bool
+
+- name: Verify TLS secret exists and is populated
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ tls_secret_name }}"
+    namespace: cert-manager
+  register: tls_secret
+  until:
+    - tls_secret.resources | length > 0
+    - tls_secret.resources[0].data is defined
+    - tls_secret.resources[0].data['tls.crt'] is defined
+    - tls_secret.resources[0].data['tls.key'] is defined
+  retries: 5
+  delay: 10
+  when: enable_cloudflare | bool
+
+- name: Log certificate deployment success
+  ansible.builtin.debug:
+    msg: "Certificate successfully deployed and ready for use. TLS secret: {{ tls_secret_name }}"
+  when: enable_cloudflare | bool

@@ -18,12 +18,5 @@ instanceManager:
       cpu: 100m
       memory: 128Mi
 
-metrics:
-  serviceMonitor:
-    enabled: true
-    interval: 30s
-    additionalLabels:
-      release: prometheus
-
 longhornUI:
   replicas: "{{ [groups['master'] | length, 2] | min }}" 

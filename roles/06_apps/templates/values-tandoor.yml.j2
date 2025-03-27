@@ -1,1 +1,35 @@
----
+tandoor:
+  env:
+    CSRF_TRUSTED_ORIGINS: "https://tandoor.{{ domain }}"
+    TZ: {{ timezone }}
+
+  ingress:
+    main:
+      enabled: true
+      className: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+      hosts:
+        - host: tandoor.{{ domain }}
+          paths:
+            - path: /
+            - path: /static
+              service:
+                port: 80
+            - path: /media
+              service:
+                port: 80
+      tls:
+        - hosts:
+            - tandoor.{{ domain }}
+  postgresql:
+    enabled: true
+    auth:
+      database: tandoor
+      postgresPassword: testd4535
+    primary:
+      persistence:
+        enabled: true
+        storageClass: "longhorn"
+        size: 8Gi

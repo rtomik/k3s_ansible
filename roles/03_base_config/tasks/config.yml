@@ -123,6 +123,15 @@
     line: 'ClientAliveCountMax 3'
   notify: Restart ssh
 
+- name: Configure multipath
+  ansible.builtin.blockinfile:
+    path: /etc/multipath.conf
+    block: |
+      blacklist {
+          devnode "^sd[a-z0-9]+"
+      }
+  notify: Restart multipathd
+
 # System Security Hardening
 - name: Configure fail2ban
   ansible.builtin.blockinfile:

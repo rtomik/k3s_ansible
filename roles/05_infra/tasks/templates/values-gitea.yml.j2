@@ -32,7 +32,7 @@ gitea:
     enabled: true
     serviceMonitor:
       enabled: true
-
+{% if deploy_authentik %}
   oauth:
     - name: "authentik"
       provider: "openidConnect"
@@ -40,7 +40,7 @@ gitea:
       autoDiscoverUrl: "https://authentik.{{ domain }}/application/o/gitea/.well-known/openid-configuration"
       iconUrl: https://authentik.{{ domain }}/static/dist/assets/icons/icon.svg
       scopes: "email profile"
-
+{% endif %}
   config:
     server:
       ROOT_URL: "https://git.{{ domain }}"

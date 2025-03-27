@@ -15,6 +15,9 @@ grafana:
           - grafana.{{ domain }}
 
   grafana.ini:
+    security:
+      csrf_trusted_origins: grafana.{{ domain }}
+{% if deploy_authentik %}
     auth:
       signout_redirect_url: "https://authentik.{{ domain }}/application/o/grafana/end-session/"
       oauth_auto_login: true
@@ -28,7 +31,7 @@ grafana:
       token_url: "https://authentik.{{ domain }}/application/o/token/"
       api_url: "https://authentik.{{ domain }}/application/o/userinfo/"
       role_attribute_path: contains(groups, 'authentik Admins') && 'Admin' || contains(groups, 'Grafana Editors') && 'Editor' || 'Viewer'
-
+{% endif %}
   env:
     GF_SERVER_ROOT_URL: "https://grafana.{{ domain }}"
     GF_SECURITY_ADMIN_USER: admin

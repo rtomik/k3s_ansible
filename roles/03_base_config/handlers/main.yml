@@ -13,3 +13,8 @@
   systemd:
     name: fail2ban
     state: restarted
+
+- name: Restart multipathd
+  systemd:
+    name: multipathd
+    state: restarted

@@ -92,7 +92,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    NOTE: If you enabled cloudflare it can take some time to propagate new TLS certificate
    First deploy k3s and cert-manager, 
    ```
-   ansible-playbook playbooks/main.yml --tags local,config,k3s,infra:traefik,infra:certs
+   ansible-playbook playbooks/main.yml --tags local,config,k3s,infra:init
    ```
    Kubeconfig will be stored in playbook dir
    Verify certificate (wait 5-10 minutes):
@@ -127,7 +127,9 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    ansible-playbook playbooks/destroy.yml
    ```
 
-## Access Services
+## Post Deployment
+
+### Access Services
 
 | Service | URL | Description |
 |---------|-----|-------------|
@@ -136,13 +138,13 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 | Grafana | `https://grafana.<domain>` | Metrics & Logs Visualization |
 | Authentik | `https://authentik.<domain>` | SSO/IAM Portal |
 | Prometheus | `https://prometheus.<domain>` | Metrics Storage |
-| GitLab | `https://gitlab.<domain>` | Source Control |
+| Gittea | `https://git.<domain>` | Source Control |
 | Homepage | `https://home.<domain>` | System Dashboard |
 
 
-## Authentik
+### Configure Authentik
 
-### Jellyfin
+#### Jellyfin
 
    - Follow this guide [Authentik docs](https://docs.goauthentik.io/integrations/services/jellyfin/)   
    - In plugin settings add Roles: user admin authentik Admins
