@@ -60,38 +60,12 @@
   ansible.builtin.apt:
     name: chrony
     state: present
-  tags:
-    - time
-    - system
-
-- name: Configure chrony
-  ansible.builtin.template:
-    src: chrony.conf.j2
-    dest: /etc/chrony/chrony.conf
-    mode: '0644'
-    owner: root
-    group: root
-    validate: '/usr/sbin/chronyc -n -c sourcestats'  # Validate config before applying
-  notify: Restart chrony
-  tags:
-    - time
-    - system
 
 - name: Enable and start chrony service
   ansible.builtin.systemd:
     name: chronyd
     state: started
     enabled: true
-  tags:
-    - time
-    - system
-
-- name: Ensure system clock is synchronized
-  ansible.builtin.command: chronyc makestep
-  changed_when: false
-  tags:
-    - time
-    - system
 
 # SSH
 

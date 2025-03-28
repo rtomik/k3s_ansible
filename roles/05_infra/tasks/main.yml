@@ -39,16 +39,16 @@
     - infra:longhorn
     - infra:init
 
-- import_tasks: metallb.yml
-  tags:
-    - infra
-    - infra:metallb
-    - infra:init
-
 - import_tasks: certs.yml
   tags:
     - infra
     - infra:certs
+    - infra:init
+
+- import_tasks: metallb.yml
+  tags:
+    - infra
+    - infra:metallb
     - infra:init
 
 - import_tasks: traefik.yml
@@ -83,8 +83,6 @@
   tags:
     - infra
     - infra:argocd
-
-
 
 - import_tasks: rancher.yml
   tags:

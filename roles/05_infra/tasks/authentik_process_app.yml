@@ -20,6 +20,7 @@
   ansible.builtin.set_fact:
     provider_exists: "{{ check_provider_response.json.pagination.count > 0 if check_provider_response.status == 200 else false }}"
 
+# Modified part of authentik_process_app.yml
 - name: "Prepare OAuth2 provider body for {{ app.name }}"
   ansible.builtin.set_fact:
     oauth2_provider_body:
@@ -33,12 +34,16 @@
         - "{{ openid_scope_uuid }}"
         - "{{ profile_scope_uuid }}"
       redirect_uris: "{{ app.redirect_uris }}"
-      sub_mode: "{{ app.sub_mode | default(omit) }}"
       access_code_validity: "minutes=1"
       refresh_token_validity: "days=30"
       id_token_validity: "minutes=60"
       client_id: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
       client_secret: "{{ lookup('password', '/dev/null length=80 chars=ascii_letters,digits') }}"
+
+- name: "Add sub_mode to OAuth2 provider body if specified"
+  ansible.builtin.set_fact:
+    oauth2_provider_body: "{{ oauth2_provider_body | combine({'sub_mode': app.sub_mode}) }}"
+  when: app.sub_mode is defined and app.sub_mode is not none
 
 - name: "Add signing key to OAuth2 provider body if needed"
   ansible.builtin.set_fact:

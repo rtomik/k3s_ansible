@@ -5,17 +5,16 @@ ingress:
   enabled: true
   className: traefik
   annotations:
-      traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
   hosts:
     - host: git.{{ domain }}
       paths:
         - path: /
           pathType: Prefix
-      tls:
-        - secretName: chart-example-tls
-          hosts:
-            - git.{{ domain }}
+  tls:
+    - hosts:
+        - git.{{ domain }}
 
 persistence:
   enabled: true
@@ -28,11 +27,6 @@ gitea:
   admin:
     existingSecret: gitea-admin-secret
 
-  metrics:
-    enabled: true
-    serviceMonitor:
-      enabled: true
-{% if deploy_authentik %}
   oauth:
     - name: "authentik"
       provider: "openidConnect"
@@ -40,7 +34,6 @@ gitea:
       autoDiscoverUrl: "https://authentik.{{ domain }}/application/o/gitea/.well-known/openid-configuration"
       iconUrl: https://authentik.{{ domain }}/static/dist/assets/icons/icon.svg
       scopes: "email profile"
-{% endif %}
   config:
     server:
       ROOT_URL: "https://git.{{ domain }}"
@@ -51,15 +44,15 @@ postgresql-ha:
   global:
     postgresql:
       database: gitea
-      password: {{ gitea_postgresql_password }}
       username: gitea
+      password: "{{ gitea_postgresql_password }}"
   enabled: true
   postgresql:
-    repmgrPassword: {{ gitea_repmgr_password }}
-    postgresPassword: {{ gitea_postgresql_password }}
-    password: {{ gitea_postgresql_password }}
+    repmgrPassword: "{{ gitea_repmgr_password }}"
+    postgresPassword: "{{ gitea_postgresql_password }}"
+    password: "{{ gitea_postgresql_password }}"
   pgpool:
-    adminPassword: {{ gitea_pgpool_password }}
+    adminPassword: "{{ gitea_pgpool_password }}"
   service:
     ports:
       postgresql: 5432

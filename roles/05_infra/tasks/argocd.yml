@@ -145,13 +145,6 @@
 - name: Deploy infrastructure apps via GitOps
   vars:
     app_definitions:
-      kube-prometheus-stack:
-        enabled: "{{ deploy_prometheus | default(false) }}"
-        chart_name: "kube-prometheus-stack"
-        version: "{{ prometheus_stack_version }}"
-        repo: "https://prometheus-community.github.io/helm-charts"
-        namespace: "monitoring"
-        skip_crds: "true"
       prometheus-operator-crds:
         enabled: "{{ deploy_prometheus | default(false) }}"
         chart_name: "prometheus-operator-crds"
@@ -159,6 +152,13 @@
         repo: "https://prometheus-community.github.io/helm-charts"
         namespace: "monitoring"
         server_side: "true"
+      kube-prometheus-stack:
+        enabled: "{{ deploy_prometheus | default(false) }}"
+        chart_name: "kube-prometheus-stack"
+        version: "{{ prometheus_stack_version }}"
+        repo: "https://prometheus-community.github.io/helm-charts"
+        namespace: "monitoring"
+        skip_crds: "true"
       grafana:
         enabled: "{{ deploy_grafana | default(false) }}"
         chart_name: "grafana"
