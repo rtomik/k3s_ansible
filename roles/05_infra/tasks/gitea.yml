@@ -83,7 +83,7 @@
     - name: Deploy or upgrade gitea
       kubernetes.core.helm:
         name: gitea
-        chart_ref: gitea-charts/gitea
+        chart_ref: gitea/gitea
         chart_version: "{{ gitea_version }}"
         release_namespace: gitea
         create_namespace: true

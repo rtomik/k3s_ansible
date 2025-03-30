@@ -141,7 +141,7 @@
     return_content: true
   register: check_app_response
   until: check_app_response.status == 200
-  retries: 3
+  retries: 5
   delay: 10
   changed_when: false
   failed_when: check_app_response.status not in [200, 404]

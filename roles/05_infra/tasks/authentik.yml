@@ -28,6 +28,8 @@
     wait: true
     wait_timeout: 5m
   register: authentik_deploy
+  retries: 3
+  delay: 30
   when: deploy_authentik | bool
 
 - name: Add user credentials to secret

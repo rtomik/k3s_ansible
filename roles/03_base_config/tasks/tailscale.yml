@@ -31,7 +31,7 @@
   ansible.builtin.command: >
     tailscale up
     --authkey={{ tailscale_key }}
-    --hostname=k3s-{{ inventory_hostname }}
+    --hostname={{ inventory_hostname }}
     --accept-dns=false
     --accept-routes
   register: tailscale_result

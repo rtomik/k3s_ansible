@@ -2,19 +2,41 @@
 global:
   domain: argocd.{{ domain }}
 
+redis-ha:
+  enabled: true
+  replicas: {{ [groups['master'] | length, 3] | min }}
+  haproxy:
+    replicas: {{ [groups['master'] | length, 3] | min }}
+
+controller:
+  replicas: 1
+
+repoServer:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+
+applicationSet:
+  replicas: 2
+
 server:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+
   ingress:
     enabled: true
     ingressClassName: traefik
     annotations:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      kubernetes.io/ingress.class: traefik
       traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
     extraTls:
       - hosts:
         - argocd.{{ domain }}
 
 configs:
+  params:
+    server.insecure: true
   cm:
     url: https://argocd.{{ domain }}
 

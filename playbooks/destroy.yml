@@ -37,7 +37,7 @@
         state: absent
       delegate_to: localhost
       run_once: true
-      
+
     - name: Remove Helm
       file:
         path: /usr/local/bin/helm

@@ -15,6 +15,11 @@
   register: tailscale_ip
   changed_when: false
 
+- name: Debug Tailscale IP
+  ansible.builtin.debug:
+    var: tailscale_ip.stdout
+    verbosity: 0
+
 - name: Create k3s directory
   ansible.builtin.file:
     path: /etc/rancher/k3s
@@ -27,8 +32,18 @@
     cmd: /tmp/k3s_install.sh server --cluster-init
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
-    K3S_TOKEN: "{{ k3s_token }}"
-    INSTALL_K3S_EXEC: "{{ k3s_server_args_primary }}"
+    K3S_TOKEN: "{{ vault_k3s_token }}"
+    K3S_KUBECONFIG_MODE: "644"
+    INSTALL_K3S_EXEC: >-
+      --tls-san={{ tailscale_ip.stdout }}
+      --bind-address=0.0.0.0
+      --advertise-address={{ tailscale_ip.stdout }}
+      --node-ip={{ tailscale_ip.stdout }}
+      --disable=traefik
+      --disable=servicelb
+      --flannel-iface=tailscale0
+      --cluster-reset-restore-path=""
+      --etcd-expose-metrics=true
   args:
     creates: /usr/local/bin/k3s
   when:
@@ -69,7 +84,7 @@
       ansible.builtin.shell: |
         kubectl wait --for=condition=Ready node/{{ inventory_hostname }} --timeout=300s --kubeconfig /etc/rancher/k3s/k3s.yaml
       register: node_ready
-      retries: 10
+      retries: 5
       delay: 10
       until: node_ready.rc == 0
       changed_when: false
@@ -78,7 +93,7 @@
       ansible.builtin.shell: |
         kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=300s --kubeconfig /etc/rancher/k3s/k3s.yaml
       register: pods_ready
-      retries: 10
+      retries: 5
       delay: 10
       until: pods_ready.rc == 0
       changed_when: false
@@ -87,12 +102,17 @@
     - inventory_hostname == groups['master'][0]
 
 - name: Install k3s secondary server
-  ansible.builtin.command:
-    cmd: /tmp/k3s_install.sh server
-  environment:
-    INSTALL_K3S_VERSION: "{{ k3s_version }}"
-    K3S_TOKEN: "{{ k3s_token }}"
-    INSTALL_K3S_EXEC: "{{ k3s_server_args_secondary }}"
+  ansible.builtin.shell:
+    cmd: |
+      INSTALL_K3S_VERSION="{{ k3s_version }}" \
+      K3S_TOKEN="{{ vault_k3s_token }}" \
+      K3S_URL="https://{{ hostvars[groups['master'][0]]['tailscale_ip']['stdout'] }}:6443" \
+      /tmp/k3s_install.sh server \
+        --flannel-iface=tailscale0 \
+        --node-ip={{ tailscale_ip.stdout }} \
+        --tls-san={{ tailscale_ip.stdout }} \
+        --disable=traefik \
+        --disable=servicelb
   args:
     creates: /usr/local/bin/k3s
   when:
@@ -130,9 +150,8 @@
 
 - name: Store kubeconfig locally
   ansible.builtin.copy:
-    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['master'][0]]['ansible_host']) }}"
+    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['master'][0]]['tailscale_ip']['stdout']) | replace('0.0.0.0', hostvars[groups['master'][0]]['tailscale_ip']['stdout']) }}"
     dest: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
   delegate_to: localhost
   when:
     - inventory_hostname == groups['master'][0]
-    - not local_kubeconfig.stat.exists

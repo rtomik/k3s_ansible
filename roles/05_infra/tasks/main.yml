@@ -21,7 +21,9 @@
     - { name: jetstack, url: "https://charts.jetstack.io" }
     - { name: gitlab, url: "https://charts.gitlab.io/" }
     - { name: emberstack, url: "https://emberstack.github.io/helm-charts"}
-    - { name: gitea, url: "https://dl.gitea.io/charts/"}
+    - { name: gitea, url: "https://dl.gitea.io/charts"}
+    - { name: metallb, url: "https://metallb.github.io/metallb"}
+    - { name: authentik, url: "https://charts.goauthentik.io/"}
   tags:
     - infra
     - infra:repos
