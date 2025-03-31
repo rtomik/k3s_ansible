@@ -25,10 +25,6 @@
     - apps
     - apps:homepage
 
-# - import_tasks: audiobookshelf.yml
-#   tags:
-#     - apps
-#     - apps:audiobookshelf
 
 # - import_tasks: homeassistant.yml
 #   tags:

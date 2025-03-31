@@ -234,6 +234,54 @@
             signing_key: true
             additional_config: []
 
+          - name: OpenWebui
+            slug: openwebui
+            namespace: open-webui
+            deploy_condition: deploy_open_webui | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://openwebui.{{ domain }}/oauth/oidc/callback"
+            meta_launch_url: "https://openwebui.{{ domain }}"
+            open_in_new_tab: true
+            secret_name: openwebui-authentik-credentials
+            sub_mode: user_email
+            signing_key: true
+            additional_config: []
+
+          - name: Paperless-ngx
+            slug: paperless-ngx
+            namespace: paperless-ngx
+            deploy_condition: deploy_paperless_ngx | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://paperless.{{ domain }}/accounts/oidc/authentik/login/callback/"
+            meta_launch_url: "https://paperless.{{ domain }}"
+            open_in_new_tab: true
+            secret_name: paperless-authentik-credentials
+            sub_mode: user_email
+            signing_key: true
+            additional_config: []
+
+          - name: Audiobookshelf
+            slug: audiobookshelf
+            namespace: audiobookshelf
+            deploy_condition: deploy_audiobookshelf | bool
+            client_type: confidential
+            redirect_uris:
+              - matching_mode: strict
+                url: "https://audiobookshelf.{{ domain }}/auth/openid/callback"
+              - matching_mode: strict
+                url: "https://audiobookshelf.{{ domain }}/auth/openid/mobile-redirect"
+            meta_launch_url: "https://audiobookshelf.{{ domain }}"
+            open_in_new_tab: true
+            secret_name: audiobookshelf-authentik-credentials
+            sub_mode: user_email
+            signing_key: true
+            additional_config: []
+
+
     - name: Handle signing key requirements
       when: authentik_apps | selectattr('signing_key', 'equalto', true) | list | length > 0
       block:

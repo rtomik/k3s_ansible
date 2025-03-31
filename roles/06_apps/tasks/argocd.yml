@@ -25,6 +25,7 @@
   vars:
     # App definitions - add new apps here
     app_definitions:
+    # Audiobookshelf source - https://github.com/mmuenker/audiobookshelf-chart
       audiobookshelf:
         enabled: "{{ deploy_audiobookshelf | default(false) }}"
         chart_name: "audiobookshelf"
@@ -58,7 +59,7 @@
       tandoor:
         enabled: "{{ deploy_tandoor | default(false) }}"
         chart_name: "tandoor"
-        version: "0.9.9"
+        version: "{{ tandoor_version }}"
         repo: "https://charts.gabe565.com"
         namespace: "tandoor"
       paperless-ngx:

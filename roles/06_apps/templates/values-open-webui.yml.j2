@@ -1,32 +1,34 @@
 open-webui:
-    ingress:
-        enabled: false
-        class: ""
-        # -- Use appropriate annotations for your Ingress controller, e.g., for NGINX:  
-        annotations: {}
-        #   # Example for GKE Ingress
-        #   kubernetes.io/ingress.class: "gce"
-        #   kubernetes.io/ingress.global-static-ip-name: "open-webui-external-ip"   #  you need to create this address in GCP console
-        #   # Force HTTP to redirect to HTTPS
-        #   nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-        #   nginx.ingress.kubernetes.io/ssl-redirect: "true"
-        #   nginx.ingress.kubernetes.io/permanent-redirect: "https://chat.example.com"
-        #   networking.gke.io/managed-certificates: "mydomain-chat-cert"
-        #   # nginx.ingress.kubernetes.io/rewrite-target: / 
-        host: "chat.example.com"  # update to your real domain 
-        additionalHosts: []
-        tls: false
-        existingSecret: ""
-    persistence:
-        enabled: true
-        size: 2Gi
-        # -- Use existingClaim if you want to re-use an existing Open WebUI PVC instead of creating a new one
-        existingClaim: ""
-        # -- Subdirectory of Open WebUI PVC to mount. Useful if root directory is not empty.
-        subPath: ""
-        # -- If using multiple replicas, you must update accessModes to ReadWriteMany
-        accessModes:
-            - ReadWriteOnce
-        storageClass: ""
-        selector: {}
-        annotations: {}
+  ingress:
+    enabled: true
+    class: "traefik"
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
+    host: openwebui.{{ domain }}
+    tls: true
+
+  persistence:
+      enabled: true
+      size: 2Gi
+      storageClass: "longhorn"
+
+{% if deploy_authentik %}
+  extraEnvVars:
+    - name: ENABLE_OAUTH_SIGNUP
+      value: "true"
+    - name: OAUTH_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: openwebui-authentik-credentials
+          key: authentik_client_id
+    - name: OAUTH_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: openwebui-authentik-credentials
+          key: authentik_client_secret
+    - name: OAUTH_PROVIDER_NAME
+      value: "authentik"
+    - name: OPENID_PROVIDER_URL
+      value: "https://authentik.{{ domain }}/application/o/openwebui/.well-known/openid-configuration"
+{% endif %}      

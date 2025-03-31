@@ -58,7 +58,7 @@
             object-src 'none';
             frame-ancestors 'self';
             base-uri 'self';
-            form-action 'self' https://jellyfin.{{ domain }} https://authentik.{{ domain }} https://argocd.{{ domain }}
+            form-action 'self' https://jellyfin.{{ domain }} https://authentik.{{ domain }} https://argocd.{{ domain }} https://paperless.{{ domain }}
           customFrameOptionsValue: SAMEORIGIN
           customRequestHeaders:
             X-Forwarded-Proto: https

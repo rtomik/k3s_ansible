@@ -27,6 +27,7 @@
         - { name: 'authentik_pg_pw', length: 15 }
         - { name: 'authentik_user_pw', length: 15 }
         - { name: 'authentik_api_token', length: 15 }
+        - { name: 'paperless_pg_pw', length: 15 }
       register: generated_tokens
       changed_when: false
 
@@ -39,6 +40,7 @@
           vault_authentik_postgresql_password: "{{ generated_tokens.results[2].stdout }}"
           vault_authentik_user_password: "{{ generated_tokens.results[3].stdout }}"
           vault_authentik_api_token: "{{ generated_tokens.results[4].stdout }}"
+          vault_paperless_pg_pw: "{{ generated_tokens.results[4].stdout }}"
 
     # Write unencrypted vault file
     - name: Create temporary unencrypted vault file

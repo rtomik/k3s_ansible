@@ -150,6 +150,10 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    - In plugin settings add Roles: user admin authentik Admins
    - Admin Roles: admin authentik Admins
 
+#### Audiobookshelf
+  
+   - Guide [Authentik docs](https://www.audiobookshelf.org/guides/oidc_authentication)    
+
 ## Troubleshooting
 
 Common issues and solutions:

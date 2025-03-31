@@ -77,18 +77,24 @@ homepage:
             icon: /icons/home-assistant.svg
 {% endif %}
 {% if deploy_donetick %}
-        - Home Assistant:
+        - Donetick:
             href: https://donetick.{{ domain }}/
             description: Task Management
             icon: 
 {% endif %}
 {% if deploy_paperless_ngx %}
-        - Paperless NGX:
-            href: https://home.{{ domain }}/
-            description: Home Automation
-            icon: /icons/home-assistant.svg
+        - Paperless-ngx:
+            href: https://paperless.{{ domain }}/
+            description: Document management
+            icon: 
 {% endif %}
-          
+{% if deploy_open_webui %}
+        - Open WebUI:
+            href: https://openwebui.{{ domain }}/
+            description: 
+            icon: 
+{% endif %}
+
     widgets:
       - kubernetes:
           cluster:
