@@ -34,19 +34,37 @@ gitea:
       autoDiscoverUrl: "https://authentik.{{ domain }}/application/o/gitea/.well-known/openid-configuration"
       iconUrl: https://authentik.{{ domain }}/static/dist/assets/icons/icon.svg
       scopes: "email profile"
+  
   config:
     server:
       ROOT_URL: "https://git.{{ domain }}"
+      DOMAIN: git.{{ domain }}
+      SSH_DOMAIN: git.{{ domain }}
+    database:
+      DB_TYPE: postgres
+      HOST: gitea-postgresql-ha-pgpool:5432
+      NAME: gitea
+      USER: gitea
+      LOG_SQL: true
     oauth2_client:
       ENABLE_AUTO_REGISTRATION: true
+    log:
+      LEVEL: debug
+
+redis-cluster:
+  enabled: true
+  usePassword: false
+  cluster:
+    nodes: {{ [groups['master'] | length, 3] | min }}
+    replicas: 0
 
 postgresql-ha:
+  enabled: true
   global:
     postgresql:
       database: gitea
       username: gitea
       password: "{{ gitea_postgresql_password }}"
-  enabled: true
   postgresql:
     repmgrPassword: "{{ gitea_repmgr_password }}"
     postgresPassword: "{{ gitea_postgresql_password }}"

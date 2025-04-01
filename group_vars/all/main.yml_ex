@@ -12,17 +12,25 @@ domain: <domain>
 email: <email>
 
 # Tailscale
-tailscale_key: "<tailscale_key>"
-tailscale_ip_range: <ip range in tailscale for nodes>  #Tailcale ip range for metalb ex.100.64.0.1-100.64.0.20
+tailscale_key: ""
+tailscale_ip_range: 100.64.0.1-100.64.0.20 # Tailcale ip range for metalb
+tailscale_primary_ip: 100.64.0.1
 
 # Cloudflare
 # If you want to use TLS certificates on apps enable cloudflare and define API token
-# Cloudflare api token settings Permissions: Zone - DNS - Edit Zone - Zone - Read Zone Resources: Include - All Zones
+# Cloudflare api token settings:
+# Permissions: Zone - DNS - Edit; Zone - Zone - Edit
+# Zone Resources: Include - All Zones
 enable_cloudflare: true
-cloudflare_api_token: <Cloudflare API Token>
+cloudflare_api_token: ""
 tls_secret_name: "wildcard-{{ domain }}-tls"
 
-# Git config
+# Git
+# Choose your git repo for argocd
+# Options:
+# 1. Selfhosted GitLab
+# 2. Selfhosted Gitea
+# 3. github.com public/private repo / work in progress
 deploy_gitea: true
 git_organization_name: "homelab"
 git_repo_name: "argocd"
@@ -33,9 +41,11 @@ git_repo_name: "argocd"
 deploy_prometheus: true
 deploy_grafana: true
 deploy_loki: true
+
 # infrastructure
 deploy_rancher: false
 deploy_authentik: true
+
 # Apps
 deploy_audiobookshelf: true
 deploy_homeassistant: true
@@ -44,44 +54,25 @@ deploy_open_webui: true
 deploy_jellyfin: true
 deploy_arr_stack: false
 deploy_homepage: true
-deploy_gitlab: false
+deploy_donetick: true
+deploy_paperless_ngx: true
 
 # ----- Optional variables --------- #
 
 # K3s config
 k3s_version: v1.31.2+k3s1
-k3s_token: "{{ vault_k3s_token }}"
-# For the first master
-k3s_server_args_primary: >-
-  --bind-address {{ tailscale_ip.stdout }}
-  --advertise-address {{ tailscale_ip.stdout }}
-  --node-ip {{ tailscale_ip.stdout }}
-  --disable=traefik
-  --disable=servicelb
-  --flannel-iface tailscale0
-  --cluster-reset-restore-path=""
-  --etcd-expose-metrics=true
-
-k3s_server_args_secondary: >-
-  --bind-address {{ tailscale_ip.stdout }}
-  --advertise-address {{ tailscale_ip.stdout }}
-  --node-ip {{ tailscale_ip.stdout }}
-  --disable=servicelb
-  --flannel-iface tailscale0
-  --disable=traefik
-  --server https://{{ hostvars[groups['master'][0]]['tailscale_ip']['stdout'] }}:6443
 
 # Helm chart versions
-traefik_version: 34.1.0
+traefik_version: 34.4.1
 certmanager_version: 1.16.3
-argocd_version: 7.7.8
+argocd_version: 7.8.15
 longhorn_version: 1.8.1
 authentik_version: 2024.12.2
 rancher_version: 2.10.1
 metallb_version: 0.14.9
 gitlab_version: 8.8.0
 gitea_version: 11.0.0
-jellyfin_version: 2.1.0
+jellyfin_version: 2.3.0
 homepage_version: 2.0.1
 reflector_version: 7.1.288
 audiobookshelf_version: 0.0.1
@@ -91,6 +82,9 @@ grafana_version: 8.8.5
 loki_version: 6.24.1
 promtail_version: 6.16.5
 openwebui_version: 5.24.0
+donetick_version: 1.0.1
+tandoor_version: 0.9.9
+paperless_ngx_version: 0.24.1
 
 # Server configuration
 perform_full_upgrade: true

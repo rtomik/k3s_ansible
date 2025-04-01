@@ -1,7 +1,7 @@
 ---
 deployment:
   enabled: true
-  replicas: 3
+  replicas: {{ [groups['master'] | length, 3] | min }}
 
 providers:
   kubernetesCRD:
@@ -18,8 +18,7 @@ service:
   enabled: true
   type: LoadBalancer
   spec:
-    loadBalancerIP: 100.64.0.1
-
+    loadBalancerIP: "{{ tailscale_primary_ip }}"
 tlsStore:
   default:
     defaultCertificate:

@@ -1,8 +1,12 @@
-# GitOps Ansible K3s Homelab Deployment
+# GitOps Ansible K3s Homelab
 
-This repository contains Ansible playbooks and roles for deploying a highly available K3s Kubernetes cluster with various applications and services, following GitOps principles.
+This project aims to easily deploy K3s Cluster via Ansible. With various applications and services, following GitOps principles. 
 
-## What is GitOps?
+Initial deployment is done via Ansible playbooks after that all apps are managed from ArgoCD.
+
+## Overview
+
+### What is GitOps?
 
 GitOps is a modern approach to managing infrastructure and applications where:
 
@@ -14,9 +18,7 @@ GitOps is a modern approach to managing infrastructure and applications where:
 
 In this project, we use ArgoCD as our GitOps engine to automatically deploy and manage applications from Git repositories, ensuring your Kubernetes cluster always reflects the state defined in your code.
 
-## Overview
-
-This project automates the deployment of a k3s cluster on multiple nodes, along with the following applications:
+### Apps
 
 | Category | Applications |
 |----------|-------------|
@@ -24,9 +26,9 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 | GitOps & Management | - ArgoCD (GitOps CD)<br>- Rancher (Kubernetes Management)<br>- GitLab (Source Control) |
 | Security | - Authentik (SSO/IAM) |
 | Monitoring Stack | - Prometheus (Metrics)<br>- Grafana (Visualization)<br>- Loki (Log Aggregation) |
-| Additional | - Homepage (Dashboard)<br>- Jellyfin (Media server)<br>- Donetick (Task management) |
+| Other | - Homepage (Dashboard)<br>- Jellyfin (Media server)<br>- Donetick (Task management) |
 
-## Features
+### Features
 
 - 🚀 Single command cluster deployment
 - 🔄 GitOps-based application deployment and lifecycle management
@@ -61,7 +63,7 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 
 ### Network Requirements
 - SSH access to all nodes (root SSH keys)
-- Domain name ([Porkbun](https://porkbun.com/) or [DuckDNS](https://www.duckdns.org/))
+- Domain name (Recommended: [Porkbun](https://porkbun.com/) or [DuckDNS](https://www.duckdns.org/))
 - [Tailscale account](https://login.tailscale.com/admin/settings/keys)
 
 ### Optional
@@ -117,12 +119,12 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
    ansible-playbook playbooks/main.yml
    ```
 
-6. To deploy specific components, use tags
+6. **To deploy specific components, use tags**
    ```
    ansible-playbook playbooks/main.yml --tags "k3s"
    ```
 
-7. To destroy the cluster and remove everything:
+7. **To destroy the cluster and remove everything**
    ```
    ansible-playbook playbooks/destroy.yml
    ```
@@ -140,15 +142,27 @@ This project automates the deployment of a k3s cluster on multiple nodes, along 
 | Prometheus | `https://prometheus.<domain>` | Metrics Storage |
 | Gittea | `https://git.<domain>` | Source Control |
 | Homepage | `https://home.<domain>` | System Dashboard |
-
+| Jellyfin | `https://jellyfin.<domain>/web/#/wizardstart.html` | Media |
 
 ### Configure Authentik
 
 #### Jellyfin
 
-   - Follow this guide [Authentik docs](https://docs.goauthentik.io/integrations/services/jellyfin/)   
-   - In plugin settings add Roles: user admin authentik Admins
-   - Admin Roles: admin authentik Admins
+   - Follow this guide [Authentik docs](https://docs.goauthentik.io/integrations/services/jellyfin/#oidc-configuration)   
+   - In plugin settings add Roles: 
+      ```
+      user
+      admin 
+      authentik Admins
+      ```
+   - Admin Roles: 
+      ```
+      admin
+      authentik Admins
+      ```
+   - Enable Role-Based Folder Access
+   - Enable All Folders
+   - Role Claim: groups
 
 #### Audiobookshelf
   

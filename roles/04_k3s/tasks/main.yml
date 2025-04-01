@@ -29,12 +29,14 @@
 
 - name: Install k3s primary server
   ansible.builtin.command:
-    cmd: /tmp/k3s_install.sh server --cluster-init
+    cmd: /tmp/k3s_install.sh
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     K3S_TOKEN: "{{ vault_k3s_token }}"
     K3S_KUBECONFIG_MODE: "644"
     INSTALL_K3S_EXEC: >-
+      server
+      --cluster-init
       --tls-san={{ tailscale_ip.stdout }}
       --bind-address=0.0.0.0
       --advertise-address={{ tailscale_ip.stdout }}
@@ -42,7 +44,6 @@
       --disable=traefik
       --disable=servicelb
       --flannel-iface=tailscale0
-      --cluster-reset-restore-path=""
       --etcd-expose-metrics=true
   args:
     creates: /usr/local/bin/k3s

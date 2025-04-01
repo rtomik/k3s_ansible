@@ -1,52 +1,52 @@
 ---
-- name: Check if Authentik is already installed
-  kubernetes.core.k8s_info:
-    api_version: apps/v1
-    kind: Deployment
-    name: authentik-server
-    namespace: authentik
-  register: authentik_check
-  ignore_errors: true
+- name: Deploy Authentik
   when: deploy_authentik | bool
-
-- name: Fetch Authentik Helm chart information
-  kubernetes.core.helm_info:
-    name: authentik
-    release_namespace: authentik
-  register: authentik_helm_info
-  ignore_errors: true
-  when: deploy_authentik | bool
-
-- name: Deploy or upgrade Authentik
-  kubernetes.core.helm:
-    name: authentik
-    chart_ref: authentik/authentik
-    chart_version: "{{ authentik_version }}"
-    release_namespace: authentik
-    create_namespace: true
-    values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"
-    wait: true
-    wait_timeout: 5m
-  register: authentik_deploy
-  retries: 3
-  delay: 30
-  when: deploy_authentik | bool
-
-- name: Add user credentials to secret
-  kubernetes.core.k8s:
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: authentik-login
+  block:
+    - name: Check if Authentik is already installed
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: authentik-server
         namespace: authentik
-      data:
-        authentik_admin_user: "{{ email | b64encode }}"
-        authentik_admin_pw: "{{ vault_authentik_user_password | b64encode }}"
-        authentik_api_token: "{{ vault_authentik_api_token | b64encode }}"
-  when: deploy_authentik | bool
+      register: authentik_check
+      ignore_errors: true
+
+    - name: Fetch Authentik Helm chart information
+      kubernetes.core.helm_info:
+        name: authentik
+        release_namespace: authentik
+      register: authentik_helm_info
+      ignore_errors: true
+
+    - name: Deploy or upgrade Authentik
+      kubernetes.core.helm:
+        name: authentik
+        chart_ref: authentik/authentik
+        chart_version: "{{ authentik_version }}"
+        release_namespace: authentik
+        create_namespace: true
+        values: "{{ lookup('template', 'values-authentik.yml.j2') | from_yaml }}"
+        wait: true
+        wait_timeout: 5m
+      register: authentik_deploy
+      retries: 3
+      delay: 30
+
+    - name: Add user credentials to secret
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: authentik-login
+            namespace: authentik
+          data:
+            authentik_admin_user: "{{ email | b64encode }}"
+            authentik_admin_pw: "{{ vault_authentik_user_password | b64encode }}"
+            authentik_api_token: "{{ vault_authentik_api_token | b64encode }}"
 
 - name: Get required variables from authentik to create application
+  when: deploy_authentik | bool
   block:
     - name: Get flow identifiers via Authentik API
       ansible.builtin.uri:
@@ -62,7 +62,6 @@
       delay: 10
       changed_when: false
       failed_when: flow_instances_response.status not in [200]
-      when: deploy_authentik | bool
 
     - name: Extract relevant flow IDs
       ansible.builtin.set_fact:
@@ -77,7 +76,6 @@
       when:
         - flow_instances_response.json.results is defined
         - flow_instances_response.json.results | length > 0
-        - deploy_authentik | bool
 
     - name: Get OAuth2 scope mappings
       ansible.builtin.uri:
@@ -98,7 +96,6 @@
       failed_when:
         - scope_mappings_response.status != 200
         - scope_mappings_response.json.results | length == 0
-      when: deploy_authentik | bool
 
     - name: Define required OAuth2 scopes
       ansible.builtin.set_fact:
@@ -106,7 +103,6 @@
           email: "goauthentik.io/providers/oauth2/scope-email"
           openid: "goauthentik.io/providers/oauth2/scope-openid"
           profile: "goauthentik.io/providers/oauth2/scope-profile"
-      when: deploy_authentik | bool
 
     - name: Verify required OAuth2 scope mappings exist
       ansible.builtin.assert:
@@ -114,7 +110,6 @@
           - required_scopes.values() | difference(scope_mappings_response.json.results | map(attribute='managed') | list) | length == 0
         fail_msg: "One or more required OAuth2 scope mappings are missing in Authentik"
         success_msg: "All required OAuth2 scope mappings are present in Authentik"
-      when: deploy_authentik | bool
 
     - name: Extract UUIDs for required OAuth2 scopes
       ansible.builtin.set_fact:
@@ -122,21 +117,118 @@
       loop: "{{ required_scopes | dict2items }}"
       loop_control:
         label: "{{ item.key }}"
-      when: deploy_authentik | bool
 
     - name: Set individual scope UUID facts
       ansible.builtin.set_fact:
         email_scope_uuid: "{{ scope_uuids.email }}"
         openid_scope_uuid: "{{ scope_uuids.openid }}"
         profile_scope_uuid: "{{ scope_uuids.profile }}"
-      when: deploy_authentik | bool
+
+    - name: Get all authentication flows
+      ansible.builtin.uri:
+        url: "https://authentik.{{ domain }}/api/v3/flows/instances/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: true
+      register: all_flows_response
+      until: all_flows_response.status == 200
+      retries: 3
+      delay: 10
+      changed_when: false
+      failed_when: all_flows_response.status not in [200]
+
+    - name: Extract flow IDs by slug
+      ansible.builtin.set_fact:
+        flow_ids: "{{ flow_ids | default({}) | combine({item.slug: item.pk}) }}"
+      loop: "{{ all_flows_response.json.results }}"
+      when: deploy_authentik | bool and all_flows_response is defined and all_flows_response.json.results is defined
+      loop_control:
+        label: "{{ item.slug }}"
+
+- name: Create RSA Certificate
+  when: deploy_authentik | bool
+  block:
+    - name: Define Api url
+      ansible.builtin.set_fact:
+        authentik_api_url: "https://authentik.{{ domain }}/api/v3"
+
+    - name: Get existing certificates from Authentik
+      ansible.builtin.uri:
+        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        return_content: true
+      register: existing_cert_keypairs
+      until: existing_cert_keypairs.status == 200
+      retries: 3
+      delay: 10
+
+    # Print debug information to verify what we receive
+    - name: Debug certificates
+      ansible.builtin.debug:
+        msg: "{{ existing_cert_keypairs.json.results | length }} certificates found"
+
+    # Filter RSA keys with boolean check
+    - name: Check if RSA keys exist
+      ansible.builtin.set_fact:
+        rsa_certs: "{{ existing_cert_keypairs.json.results | 
+                     selectattr('private_key_type', 'defined') | 
+                     selectattr('private_key_type', 'equalto', 'rsa') | 
+                     list }}"
+        has_rsa_keys: "{{ (existing_cert_keypairs.json.results | 
+                        selectattr('private_key_type', 'defined') | 
+                        selectattr('private_key_type', 'equalto', 'rsa') | 
+                        list) | length > 0 }}"
+
+    # Debug RSA certificates
+    - name: Debug RSA certificates
+      ansible.builtin.debug:
+        msg:
+          - "Found {{ rsa_certs | length }} RSA certificates"
+          - "has_rsa_keys = {{ has_rsa_keys }}"
+          - "First RSA cert (if any): {{ rsa_certs[0].name if rsa_certs else 'None' }}"
+
+    # Use the first RSA certificate if any exist
+    - name: Use existing RSA key
+      ansible.builtin.set_fact:
+        signing_key_uid: "{{ rsa_certs[0].pk }}"
+      when: has_rsa_keys
+
+    # Create a new certificate only if no RSA certificates exist
+    - name: Create RSA signing key only if none exist
+      ansible.builtin.uri:
+        url: "{{ authentik_api_url }}/crypto/certificatekeypairs/generate/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_authentik_api_token }}"
+          Content-Type: "application/json"
+        body:
+          name: "jwt-signing-{{ lookup('password', '/dev/null chars=lowercase,digits length=6') }}"
+          common_name: "jwt-signing-{{ lookup('password', '/dev/null chars=lowercase,digits length=6') }}"
+          subject_alt_names: []
+          validity_days: 5000
+          key_type: "rsa"
+          key_length: 2048
+        body_format: json
+        status_code: [200, 201]
+      register: create_signing_key_response
+      when: not has_rsa_keys
+
+    # Set the certificate ID from newly created key
+    - name: Set signing key ID from newly created key
+      ansible.builtin.set_fact:
+        signing_key_uid: "{{ create_signing_key_response.json.pk }}"
+      when: not has_rsa_keys and create_signing_key_response is defined
 
 - name: Configure apps
   when: deploy_authentik | bool
   block:
     - name: Define application configurations
       ansible.builtin.set_fact:
-        authentik_api_url: "https://authentik.{{ domain }}/api/v3"
         authentik_apps:
           - name: ArgoCD
             slug: argocd
@@ -153,6 +245,7 @@
             secret_name: argocd-authentik-credentials
             sub_mode: null
             signing_key: true
+            authentication_flow: "{{ flow_ids['default-authentication-flow'] }}"
             additional_config: []
 
           - name: Grafana
@@ -280,67 +373,6 @@
             sub_mode: user_email
             signing_key: true
             additional_config: []
-
-
-    - name: Handle signing key requirements
-      when: authentik_apps | selectattr('signing_key', 'equalto', true) | list | length > 0
-      block:
-        - name: Get existing certificate key pairs from Authentik
-          ansible.builtin.uri:
-            url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
-            method: GET
-            headers:
-              Authorization: "Bearer {{ vault_authentik_api_token }}"
-              Content-Type: "application/json"
-            return_content: true
-          register: existing_cert_keypairs
-          until: existing_cert_keypairs.status == 200
-          retries: 3
-          delay: 10
-
-        - name: Set existing signing key fact if exists
-          ansible.builtin.set_fact:
-            signing_key_pk: >-
-              {{
-                existing_cert_keypairs.json.results
-                | selectattr('name', 'equalto', 'ArgoCD Signing Key')
-                | list | first | default(None)
-              }}
-
-        - name: Create a signing key in Authentik if not already present
-          ansible.builtin.uri:
-            url: "{{ authentik_api_url }}/crypto/certificatekeypairs/generate/"
-            method: POST
-            headers:
-              Authorization: "Bearer {{ vault_authentik_api_token }}"
-              Content-Type: "application/json"
-            body:
-              common_name: "ArgoCD Signing Key"
-              validity_days: 5000
-              alg: "rsa"
-            body_format: json
-          register: create_signing_key_response
-          when: signing_key_pk is none
-
-        - name: Re-fetch certificate key pairs from Authentik after creation
-          ansible.builtin.uri:
-            url: "{{ authentik_api_url }}/crypto/certificatekeypairs/"
-            method: GET
-            headers:
-              Authorization: "Bearer {{ vault_authentik_api_token }}"
-              Content-Type: "application/json"
-            return_content: true
-          register: keypairs_response
-          when: signing_key_pk is none
-
-        - name: Set signing key UID fact
-          ansible.builtin.set_fact:
-            signing_key_uid: >-
-              {{
-                (keypairs_response.json.results if signing_key_pk is none else existing_cert_keypairs.json.results)
-                | selectattr('name', 'equalto', 'ArgoCD Signing Key')
-                | list | first | default({}) | json_query('pk')
-              }}
 
     - name: Filter active applications
       ansible.builtin.set_fact:
