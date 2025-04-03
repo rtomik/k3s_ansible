@@ -64,6 +64,26 @@ kube-prometheus-stack:
   
   nodeExporter:
     enabled: true
+    hostNetwork: true
+    hostPID: true
+    hostRootfs: true
+    serviceMonitor:
+      relabelings:
+        - action: replace
+          regex: (.*)
+          replacement: $1
+          sourceLabels:
+            - __meta_kubernetes_pod_node_name
+          targetLabel: instance
+    extraArgs:
+      - --web.listen-address=0.0.0.0:9100
+    resources:
+      limits:
+        cpu: 200m
+        memory: 50Mi
+      requests:
+        cpu: 100m
+        memory: 30Mi
   
   prometheusOperator:
     enabled: true

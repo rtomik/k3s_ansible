@@ -1,4 +1,3 @@
----
 replicaCount: 1
 
 ingress:
@@ -23,10 +22,48 @@ persistence:
   accessModes:
     - ReadWriteOnce
 
+redis-cluster:
+  enabled: false
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      storageClass: longhorn
+      size: 8Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+{% if groups['master'] | length <= 1 %}
+# Single node configuration
+postgresql-ha:
+  enabled: false
+
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: gitea
+        username: gitea
+        password: "{{ gitea_postgresql_password }}"
+        postgresPassword: "{{ gitea_postgresql_password }}"
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: longhorn
+
 gitea:
   admin:
     existingSecret: gitea-admin-secret
-
+{% if deploy_authentik %}
   oauth:
     - name: "authentik"
       provider: "openidConnect"
@@ -34,7 +71,7 @@ gitea:
       autoDiscoverUrl: "https://authentik.{{ domain }}/application/o/gitea/.well-known/openid-configuration"
       iconUrl: https://authentik.{{ domain }}/static/dist/assets/icons/icon.svg
       scopes: "email profile"
-  
+{% endif %}
   config:
     server:
       ROOT_URL: "https://git.{{ domain }}"
@@ -42,21 +79,29 @@ gitea:
       SSH_DOMAIN: git.{{ domain }}
     database:
       DB_TYPE: postgres
-      HOST: gitea-postgresql-ha-pgpool:5432
+      HOST: gitea-postgresql.gitea.svc.cluster.local:5432
       NAME: gitea
       USER: gitea
-      LOG_SQL: true
+      PASSWD: "{{ gitea_postgresql_password }}"
+    cache:
+      ADAPTER: redis
+      HOST: gitea-redis-master.gitea.svc.cluster.local:6379
+    session:
+      PROVIDER: redis
+      PROVIDER_CONFIG: gitea-redis-master.gitea.svc.cluster.local:6379
+    queue:
+      TYPE: redis
+      CONN_STR: redis://gitea-redis-master.gitea.svc.cluster.local:6379/0
     oauth2_client:
       ENABLE_AUTO_REGISTRATION: true
+    indexer:
+      ISSUE_INDEXER_TYPE: bleve
+      REPO_INDEXER_ENABLED: true
     log:
       LEVEL: debug
 
-redis-cluster:
-  enabled: true
-  usePassword: false
-  cluster:
-    nodes: {{ [groups['master'] | length, 3] | min }}
-    replicas: 0
+{% else %}
+# High-availability configuration
 
 postgresql-ha:
   enabled: true
@@ -77,3 +122,29 @@ postgresql-ha:
   persistence:
     size: 10Gi
     storageClass: longhorn
+
+gitea:
+  admin:
+    existingSecret: gitea-admin-secret
+{% if deploy_authentik %}
+  oauth:
+    - name: "authentik"
+      provider: "openidConnect"
+      existingSecret: gitea-authentik-secret
+      autoDiscoverUrl: "https://authentik.{{ domain }}/application/o/gitea/.well-known/openid-configuration"
+      iconUrl: https://authentik.{{ domain }}/static/dist/assets/icons/icon.svg
+      scopes: "email profile"
+{% endif %}
+  config:
+    server:
+      ROOT_URL: "https://git.{{ domain }}"
+      DOMAIN: git.{{ domain }}
+      SSH_DOMAIN: git.{{ domain }}
+    oauth2_client:
+      ENABLE_AUTO_REGISTRATION: true
+    indexer:
+      ISSUE_INDEXER_TYPE: bleve
+      REPO_INDEXER_ENABLED: true
+    log:
+      LEVEL: debug
+{% endif %}

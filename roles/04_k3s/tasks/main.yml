@@ -75,6 +75,9 @@
     mode: '0644'
 
 - name: Wait for k3s primary server to be ready
+  when:
+    - not k3s_binary.stat.exists
+    - inventory_hostname == groups['master'][0]
   block:
     - name: Wait for kubeconfig
       ansible.builtin.wait_for:
@@ -98,9 +101,6 @@
       delay: 10
       until: pods_ready.rc == 0
       changed_when: false
-  when:
-    - not k3s_binary.stat.exists
-    - inventory_hostname == groups['master'][0]
 
 - name: Install k3s secondary server
   ansible.builtin.shell:
@@ -156,3 +156,4 @@
   delegate_to: localhost
   when:
     - inventory_hostname == groups['master'][0]
+  

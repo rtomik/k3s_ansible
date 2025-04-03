@@ -1,87 +1,72 @@
 ---
 loki:
-  deploymentMode: "{{ 'Scalable' if groups['master'] | length > 1 else 'SingleBinary' }}"
-
   loki:
-    auth_enabled: false
-    commonConfig:
-      replication_factor: "{{ [groups['master'] | length, 3] | min }}"
-    
     schemaConfig:
       configs:
         - from: "2024-04-01"
           store: tsdb
-          object_store: filesystem
+          object_store: s3
           schema: v13
           index:
             prefix: loki_index_
             period: 24h
-
-    storage:
-      type: filesystem
-      filesystem:
-        chunks_directory: /var/loki/chunks
-        rules_directory: /var/loki/rules
-
+    ingester:
+      chunk_encoding: snappy
+    querier:
+      max_concurrent: {{ [groups['master'] | length, 3] | min }}
+    pattern_ingester:
+      enabled: true
     limits_config:
-      ingestion_rate_mb: 32
-      ingestion_burst_size_mb: 64
-      max_global_streams_per_user: 5000
-      max_query_length: 1440h  # 60 days
-      retention_period: 1440h  # 60 days
+      allow_structured_metadata: true
+      volume_enabled: true
 
-  minio:
-    enabled: "{{ groups['master'] | length > 1 }}"
-    persistence:
-      size: 20Gi
-      storageClass: longhorn
+
+  deploymentMode: Distributed
+
+  ingester:
+    replicas: {{ [groups['master'] | length, 3] | min }}
+    zoneAwareReplication:
+      enabled: false
+  querier:
+    replicas: {{ [groups['master'] | length, 3] | min }}
+    maxUnavailable: 2
+  queryFrontend:
+    replicas: 2
+    maxUnavailable: 1
+  queryScheduler:
+    replicas: 2
+  distributor:
+    replicas: {{ [groups['master'] | length, 3] | min }} 
+    maxUnavailable: 2
+  compactor:
+    replicas: 1
+  indexGateway:
+    replicas: 2
+    maxUnavailable: 1
+
+  bloomPlanner:
+    replicas: 0
+  bloomBuilder:
+    replicas: 0
+  bloomGateway:
+    replicas: 0
+
+  backend:
+    replicas: 0
+  read:
+    replicas: 0
+  write:
+    replicas: 0
 
   singleBinary:
-    replicas: "{{ 1 if groups['master'] | length == 1 else 0 }}"
-    persistence:
-      enabled: true
-      storageClass: longhorn
-      size: 10Gi
-      accessModes:
-        - ReadWriteOnce
+    replicas: 0
 
-  # For multi-node setup, enable these components
-  backend:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
-  read:
-    replicas: "{{ 0 if groups['master'] | length == 1 else [groups['master'] | length, 2] | min }}"
-  write:
-    replicas: "{{ 0 if groups['master'] | length == 1 else [groups['master'] | length, 2] | min }}"
-  
-  # Scale these components based on node count when in Scalable mode
-  ingester:
-    replicas: "{{ 0 if groups['master'] | length == 1 else [groups['master'] | length, 2] | min }}"
-    persistence:
-      enabled: true
-      storageClass: longhorn
-      size: 10Gi
-  querier:
-    replicas: "{{ 0 if groups['master'] | length == 1 else [groups['master'] | length, 2] | min }}"
-  queryFrontend:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
-  queryScheduler:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
-  distributor:
-    replicas: "{{ 0 if groups['master'] | length == 1 else [groups['master'] | length, 2] | min }}"
-  compactor:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
-  indexGateway:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
-  bloomCompactor:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
-  bloomGateway:
-    replicas: "{{ 0 if groups['master'] | length == 1 else 1 }}"
+  # This exposes the Loki gateway so it can be written to and queried externaly
+  gateway:
+    service:
+      type: LoadBalancer
 
-  # Resource requests should scale with cluster size
-  resources:
-    requests:
-      cpu: "{{ '100m' if groups['master'] | length == 1 else '200m' }}"
-      memory: "{{ '256Mi' if groups['master'] | length == 1 else '512Mi' }}"
-    limits:
-      cpu: "{{ '1' if groups['master'] | length == 1 else '2' }}"
-      memory: "{{ '1Gi' if groups['master'] | length == 1 else '2Gi' }}"
+
+  # Enable minio for storage
+  minio:
+    enabled: true
