@@ -52,8 +52,8 @@ postgresql:
       auth:
         database: gitea
         username: gitea
-        password: "{{ gitea_postgresql_password }}"
-        postgresPassword: "{{ gitea_postgresql_password }}"
+        password: "{{ vault_vault_gitea_postgresql_password }}"
+        postgresPassword: "{{ vault_vault_gitea_postgresql_password }}"
   primary:
     persistence:
       enabled: true
@@ -82,7 +82,7 @@ gitea:
       HOST: gitea-postgresql.gitea.svc.cluster.local:5432
       NAME: gitea
       USER: gitea
-      PASSWD: "{{ gitea_postgresql_password }}"
+      PASSWD: "{{ vault_vault_gitea_postgresql_password }}"
     cache:
       ADAPTER: redis
       HOST: gitea-redis-master.gitea.svc.cluster.local:6379
@@ -109,13 +109,13 @@ postgresql-ha:
     postgresql:
       database: gitea
       username: gitea
-      password: "{{ gitea_postgresql_password }}"
+      password: "{{ vault_gitea_postgresql_password }}"
   postgresql:
-    repmgrPassword: "{{ gitea_repmgr_password }}"
-    postgresPassword: "{{ gitea_postgresql_password }}"
-    password: "{{ gitea_postgresql_password }}"
+    repmgrPassword: "{{ vault_gitea_repmgr_password }}"
+    postgresPassword: "{{ vault_gitea_postgresql_password }}"
+    password: "{{ vault_gitea_postgresql_password }}"
   pgpool:
-    adminPassword: "{{ gitea_pgpool_password }}"
+    adminPassword: "{{ vault_gitea_pgpool_password }}"
   service:
     ports:
       postgresql: 5432

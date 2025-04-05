@@ -42,29 +42,6 @@
             username: "{{ 'admin' | b64encode }}"
             password: "{{ gitea_admin_password | b64encode }}"
 
-    - name: Check if Gitea PostgreSQL credentials secret exists
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Secret
-        name: gitea-postgresql-secret
-        namespace: gitea
-      register: existing_postgresql_secret
-      ignore_errors: true
-
-    - name: Generate random passwords for Gitea PostgreSQL
-      ansible.builtin.set_fact:
-        gitea_postgresql_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
-        gitea_repmgr_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
-        gitea_pgpool_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
-      when: existing_postgresql_secret.resources is not defined or existing_postgresql_secret.resources | length == 0
-
-    - name: Retrieve existing PostgreSQL passwords
-      ansible.builtin.set_fact:
-        gitea_postgresql_password: "{{ (existing_postgresql_secret.resources[0].data['postgresql-password'] | b64decode) }}"
-        gitea_repmgr_password: "{{ (existing_postgresql_secret.resources[0].data['repmgr-password'] | b64decode) }}"
-        gitea_pgpool_password: "{{ (existing_postgresql_secret.resources[0].data['pgpool-password'] | b64decode) }}"
-      when: existing_postgresql_secret.resources is defined and existing_postgresql_secret.resources | length > 0
-
     - name: Create Gitea postgresql credentials secret
       kubernetes.core.k8s:
         state: present
@@ -76,9 +53,9 @@
             namespace: gitea
           type: Opaque
           data:
-            postgresql-password: "{{ gitea_postgresql_password | b64encode }}"
-            repmgr-password: "{{ gitea_repmgr_password | b64encode }}"
-            pgpool-password: "{{ gitea_pgpool_password | b64encode }}"
+            postgresql-password: "{{ vault_gitea_postgresql_password | b64encode }}"
+            repmgr-password: "{{ vault_gitea_repmgr_password | b64encode }}"
+            pgpool-password: "{{ vault_gitea_pgpool_password | b64encode }}"
 
     - name: Deploy or upgrade gitea
       kubernetes.core.helm:
@@ -89,6 +66,8 @@
         create_namespace: true
         values: "{{ lookup('template', 'values-gitea.yml.j2') | from_yaml }}"
       register: gitea_deploy
+      retries: 5
+      delay: 10
 
     - name: Wait for gitea to be ready
       kubernetes.core.k8s_info:
@@ -103,7 +82,6 @@
         (gitea_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
       retries: 30
       delay: 30
-      when: deploy_gitea | bool
 
 - name: Configure Gitea
   when: deploy_gitea | bool

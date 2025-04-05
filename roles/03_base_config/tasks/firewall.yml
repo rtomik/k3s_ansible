@@ -23,3 +23,14 @@
     - '9300'
     - '10250' # Kubelet
 
+- name: Allow Prometheus Node Exporter through UFW (TCP)
+  community.general.ufw:
+    rule: allow
+    port: '9100'
+    proto: tcp
+
+- name: Allow Prometheus Node Exporter through UFW (UDP)
+  community.general.ufw:
+    rule: allow
+    port: '9100'
+    proto: udp
