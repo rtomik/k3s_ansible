@@ -63,3 +63,34 @@
           customRequestHeaders:
             X-Forwarded-Proto: https
 
+
+- name: Configure traefik recipya Middleware
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: traefik.io/v1alpha1
+      kind: Middleware
+      metadata:
+        name: recipya-headers
+        namespace: default
+      spec:
+        headers:
+          browserXssFilter: true
+          contentTypeNosniff: true
+          customFrameOptionsValue: SAMEORIGIN
+          contentSecurityPolicy: >-
+            default-src 'self';
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://unpkg.com;
+            style-src 'self' 'unsafe-inline';
+            img-src 'self' data: blob:;
+            font-src 'self' data:;
+            connect-src 'self' ws: wss: *;
+            worker-src 'self' blob:;
+            frame-src 'self';
+            media-src 'self' blob:;
+            object-src 'none';
+            form-action 'self';
+          customRequestHeaders:
+            X-Forwarded-Proto: "https"
+            X-Forwarded-Host: "recipya.{{ domain }}"
+            X-Forwarded-For: "true"

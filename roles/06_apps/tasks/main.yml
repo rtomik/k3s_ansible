@@ -32,7 +32,3 @@
 #     - apps:homeassistant
 #     - apps:smarthome
 
-# - import_tasks: tandoor.yml
-#   tags:
-#     - apps
-#     - apps:tandoor
