@@ -23,7 +23,7 @@ In this project, we use ArgoCD as our GitOps engine to automatically deploy and 
 | Category | Applications |
 |----------|-------------|
 | Infrastructure | - MetalLB (LoadBalancer)<br>- Traefik (Ingress Controller)<br>- Longhorn (Distributed Block Storage) |
-| GitOps & Management | - ArgoCD (GitOps CD)<br>- Rancher (Kubernetes Management)<br>- GitLab (Source Control) |
+| GitOps & Management | - ArgoCD (GitOps CD)<br>- Rancher (Kubernetes Management)<br>- Gitea (Source Control) |
 | Security | - Authentik (SSO/IAM) |
 | Monitoring Stack | - Prometheus (Metrics)<br>- Grafana (Visualization)<br>- Loki (Log Aggregation) |
 | Other | - Homepage (Dashboard)<br>- Jellyfin (Media server)<br>- Donetick (Task management) |
