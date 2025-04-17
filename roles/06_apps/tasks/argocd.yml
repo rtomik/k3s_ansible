@@ -62,6 +62,12 @@
         version: "{{ paperless_ngx_version }}"
         repo: "https://charts.gabe565.com"
         namespace: "paperless-ngx"
+      recipya:
+        enabled: "{{ deploy_recipya | default(false) }}"
+        chart_name: "recipya"
+        version: "{{ recipya_version }}"
+        repo: "https://rtomik.github.io/helm-charts"
+        namespace: "recipya"
 
       # Template for adding new apps
       # new-app:

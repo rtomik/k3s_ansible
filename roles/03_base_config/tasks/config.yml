@@ -1,110 +1,94 @@
 ---
-# Purpose: Base server configuration for security, system settings, and general hardening
-# This file configures essential system settings for all nodes in the cluster
+- name: System Package Management
+  block:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
 
+    - name: Upgrade all packages for security
+      ansible.builtin.apt:
+        upgrade: true
+        update_cache: true
+      when: perform_full_upgrade | default(false)
+      register: package_upgrade
 
-# System Package Management
-- name: Update apt cache
-  ansible.builtin.apt:
-    update_cache: true
-    cache_valid_time: 3600
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+          - fail2ban
+          - ufw
+          - python3-kubernetes
+          - python3-yaml
+          - python3-venv
+          - unattended-upgrades
+          - auditd
+          - tcpdump
+        state: present
+        install_recommends: false  # Minimize installation footprint
+      register: package_install
 
-- name: Upgrade all packages for security
-  ansible.builtin.apt:
-    upgrade: true
-    update_cache: true
-  when: perform_full_upgrade | default(false)
-  register: package_upgrade
+    - name: Configure automatic security updates
+      ansible.builtin.template:
+        src: 20auto-upgrades.j2
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: '0644'
+        owner: root
+        group: root
 
-- name: Install required packages
-  ansible.builtin.apt:
-    name:
-      - curl
-      - apt-transport-https
-      - ca-certificates
-      - software-properties-common
-      - fail2ban
-      - ufw
-      - python3-kubernetes
-      - python3-yaml
-      - python3-venv
-      - unattended-upgrades
-      - auditd
-      - tcpdump
-    state: present
-    install_recommends: false  # Minimize installation footprint
-  register: package_install
+    - name: Configure unattended-upgrades for security
+      ansible.builtin.blockinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        create: true
+        block: |
+          Unattended-Upgrade::Allowed-Origins {
+            "${distro_id}:${distro_codename}";
+            "${distro_id}:${distro_codename}-security";
+            "${distro_id}ESMApps:${distro_codename}-apps-security";
+            "${distro_id}ESM:${distro_codename}-infra-security";
+          };
+          Unattended-Upgrade::Package-Blacklist {};
+          Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+          Unattended-Upgrade::Automatic-Reboot-Time "02:00";
 
-- name: Configure automatic security updates
-  ansible.builtin.template:
-    src: 20auto-upgrades.j2
-    dest: /etc/apt/apt.conf.d/20auto-upgrades
-    mode: '0644'
-    owner: root
-    group: root
+- name: Time Synchronization
+  block:
+    - name: Set timezone
+      community.general.timezone:
+        name: "{{ timezone }}"
 
-- name: Configure unattended-upgrades for security
-  ansible.builtin.blockinfile:
-    path: /etc/apt/apt.conf.d/50unattended-upgrades
-    create: true
-    block: |
-      Unattended-Upgrade::Allowed-Origins {
-        "${distro_id}:${distro_codename}";
-        "${distro_id}:${distro_codename}-security";
-        "${distro_id}ESMApps:${distro_codename}-apps-security";
-        "${distro_id}ESM:${distro_codename}-infra-security";
-      };
-      Unattended-Upgrade::Package-Blacklist {};
-      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
-      Unattended-Upgrade::Remove-Unused-Dependencies "true";
-      Unattended-Upgrade::Automatic-Reboot "false";
-      Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+    - name: Install chrony
+      ansible.builtin.apt:
+        name: chrony
+        state: present
 
-# Time Synchronization
-- name: Set timezone
-  community.general.timezone:
-    name: "{{ timezone }}"
+    - name: Enable and start chrony service
+      ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: true
 
-- name: Install chrony
-  ansible.builtin.apt:
-    name: chrony
-    state: present
+- name: SSH
+  block:
+    - name: Disable password authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+      notify: Restart ssh
 
-- name: Enable and start chrony service
-  ansible.builtin.systemd:
-    name: chronyd
-    state: started
-    enabled: true
-
-# SSH
-
-- name: Disable password authentication
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'
-  notify: Restart ssh
-
-- name: Disable root login
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin no'
-  notify: Restart ssh
-
-- name: Set SSH idle timeout
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?ClientAliveInterval'
-    line: 'ClientAliveInterval 300'
-  notify: Restart ssh
-
-- name: Set SSH client alive count max
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?ClientAliveCountMax'
-    line: 'ClientAliveCountMax 3'
-  notify: Restart ssh
+    - name: Disable root login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify: Restart ssh
 
 - name: Configure multipath
   ansible.builtin.blockinfile:
@@ -114,33 +98,6 @@
           devnode "^sd[a-z0-9]+"
       }
   notify: Restart multipathd
-
-# System Security Hardening
-- name: Configure fail2ban
-  ansible.builtin.blockinfile:
-    path: /etc/fail2ban/jail.local
-    create: true
-    mode: '0644'
-    block: |
-      [DEFAULT]
-      bantime = 1h
-      findtime = 10m
-      maxretry = 5
-
-      [sshd]
-      enabled = true
-      port = ssh
-      filter = sshd
-      logpath = /var/log/auth.log
-      maxretry = 3
-      bantime = 3h
-  notify: Restart fail2ban
-
-- name: Enable fail2ban
-  ansible.builtin.service:
-    name: fail2ban
-    state: started
-    enabled: true
 
 # Hostname
 - name: Get current hostname

@@ -104,13 +104,14 @@ In this project, we use ArgoCD as our GitOps engine to automatically deploy and 
    Check cert-manager pod logs for any error
    ```
    CERT_MANAGER_POD=$(kubectl get pods -n cert-manager -l app.kubernetes.io/name=cert-manager -o jsonpath='{.items[0].metadata.name}')
-   k logs $CERT_MANAGER_POD -n cert-manager
+   k logs $CERT_MANAGER_POD -n cert-manager -f
    ```
    On error
    ```
    Error cleaning up challenge: while querying the Cloudflare API for DELETE
    ```
    Delete TXT _acme-challenge records in cloudflare
+   Delete certificate from kubernetes and retry
 
    After the certificate is created rerun the main playbook.
 

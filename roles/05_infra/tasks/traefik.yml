@@ -94,3 +94,4 @@
             X-Forwarded-Proto: "https"
             X-Forwarded-Host: "recipya.{{ domain }}"
             X-Forwarded-For: "true"
+  when: deploy_recipya | bool

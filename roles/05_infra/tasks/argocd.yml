@@ -87,7 +87,6 @@
         curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/'
       register: argocd_latest_version
       changed_when: false
-      # Remove the condition so it always gets the latest version
 
     - name: Download and install ArgoCD CLI
       ansible.builtin.shell: |

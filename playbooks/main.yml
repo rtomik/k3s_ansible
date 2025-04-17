@@ -12,7 +12,7 @@
   hosts: all
   gather_facts: false
   vars:
-    ansible_user: "{{ ansible_initial_user }}"
+    ansible_user: "root"
   tasks:
     - name: Try to connect as ansible user
       wait_for_connection:
@@ -27,18 +27,44 @@
       set_fact:
         initial_setup: "{{ connection_test is failed }}"
       tags: config
+    
+    - name: Debug connection status
+      debug:
+        msg: "Initial setup needed: {{ initial_setup }}"
+      tags: config
 
     - name: Create ansible user
       include_role:
         name: 02_create_user
-      when: initial_setup | default(false)
+      when: initial_setup | default(true)  # Default to true to ensure it runs
+      tags: config
+      
+    - name: Ensure ansible user is accessible
+      wait_for_connection:
+        delay: 5
+        timeout: 10
+      vars:
+        ansible_user: "{{ user }}"
+      register: final_connection_test
+      ignore_errors: true
+      tags: config
+
+    - name: Debug final connection status
+      debug:
+        msg: "Final connection test: {{ 'Success' if final_connection_test is success else 'Failed' }}"
       tags: config
 
 - name: 03 Prepare and harden servers
   hosts: all
   become: true
   vars:
-    ansible_user: "{{ user }}"
+    ansible_user: "ansible"
+  tasks:
+    - name: Debug connection
+      debug:
+        msg: "Connected as ansible user to {{ inventory_hostname }}"
+      tags: config
+
   roles:
     - role: 03_base_config
       tags:
@@ -48,7 +74,7 @@
   hosts: k3s_cluster
   become: true
   vars:
-    ansible_user: "{{ user }}"
+    ansible_user: "ansible"
   roles:
     - role: 04_k3s
       tags:
@@ -58,7 +84,7 @@
   hosts: k3s_cluster[0]
   become: true
   vars:
-    ansible_user: "{{ user }}"
+    ansible_user: "ansible"
   roles:
     - role: 05_infra
       tags:
@@ -68,7 +94,7 @@
   hosts: k3s_cluster[0]
   become: true
   vars:
-    ansible_user: "{{ user }}"
+    ansible_user: "ansible"
   roles:
     - role: 06_apps
       tags:

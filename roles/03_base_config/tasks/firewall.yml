@@ -1,36 +1,24 @@
 ---
 
-- name: Enable UFW
-  community.general.ufw:
-    state: enabled
-    policy: deny
+# - name: Enable UFW
+#   community.general.ufw:
+#     state: enabled
+#     policy: deny
 
-- name: Open required ports for k3s
-  community.general.ufw:
-    rule: allow
-    port: "{{ item }}"
-    proto: tcp
-  loop:
-    - '22'
-    - '123'
-    - '80'
-    - '443'
-    - '6443'  # Kubernetes API
-    - '2379'  # etcd client port
-    - '2380'  # etcd peer port
-    - '9345'  # k3s internal
-    - '9100'
-    - '9300'
-    - '10250' # Kubelet
-
-- name: Allow Prometheus Node Exporter through UFW (TCP)
-  community.general.ufw:
-    rule: allow
-    port: '9100'
-    proto: tcp
-
-- name: Allow Prometheus Node Exporter through UFW (UDP)
-  community.general.ufw:
-    rule: allow
-    port: '9100'
-    proto: udp
+# - name: Open required ports for k3s
+#   community.general.ufw:
+#     rule: allow
+#     port: "{{ item }}"
+#     proto: tcp
+#   loop:
+#     - '22'
+#     - '123'
+#     - '80'
+#     - '443'
+#     - '6443'  # Kubernetes API
+#     - '2379'  # etcd client port
+#     - '2380'  # etcd peer port
+#     - '9345'  # k3s internal
+#     - '9100'
+#     - '9300'
+#     - '10250' # Kubelet
