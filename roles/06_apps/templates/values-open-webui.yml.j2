@@ -6,7 +6,6 @@ open-webui:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.middlewares: default-default-headers@kubernetescrd
     host: openwebui.{{ domain }}
-    tls: true
 
   persistence:
       enabled: true

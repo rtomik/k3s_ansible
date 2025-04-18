@@ -86,18 +86,15 @@ grafana:
           timeInterval: 30s
           queryTimeout: 30s
       - name: Loki
-        type: loki
-        url: http://loki:3100
         access: proxy
         isDefault: false
         jsonData:
-          maxLines: 1000
-          timeout: 30
-          derivedFields:
-            - datasourceUid: Prometheus
-              matcherRegex: "(?:trace_id|traceid)=(\\w+)"
-              name: TraceID
-              url: $${__value.raw}
+          httpHeaderName1: X-Scope-OrgID
+        secureJsonData:
+          httpHeaderValue1: 1
+        orgId: 1
+        type: loki
+        url: http://loki-gateway.monitoring.svc.cluster.local
 
   extraVolumeMounts:
     - name: dashboards

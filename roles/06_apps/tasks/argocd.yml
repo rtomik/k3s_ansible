@@ -27,51 +27,69 @@
     app_definitions:
     # Audiobookshelf source - https://github.com/mmuenker/audiobookshelf-chart
       audiobookshelf:
-        enabled: "{{ deploy_audiobookshelf | default(false) }}"
+        enabled: "{{ deploy_audiobookshelf }}"
         chart_name: "audiobookshelf"
         version: "{{ audiobookshelf_version }}"
         repo: "https://gitlab.com/api/v4/projects/57546317/packages/helm/release"
         namespace: "audiobookshelf"
       open-webui:
-        enabled: "{{ deploy_open_webui | default(false) }}"
+        enabled: "{{ deploy_open_webui }}"
         chart_name: "open-webui"
         version: "{{ openwebui_version }}"
         repo: "https://helm.openwebui.com/"
         namespace: "open-webui"
       homepage:
-        enabled: "{{ deploy_homepage | default(false) }}"
+        enabled: "{{ deploy_homepage }}"
         chart_name: "homepage"
         version: "{{ homepage_version }}"
         repo: "https://jameswynn.github.io/helm-charts"
         namespace: "homepage"
       donetick:
-        enabled: "{{ deploy_donetick | default(false) }}"
+        enabled: "{{ deploy_donetick }}"
         chart_name: "donetick"
         version: "{{ donetick_version }}"
         repo: "https://rtomik.github.io/helm-charts"
         namespace: "donetick"
       jellyfin:
-        enabled: "{{ deploy_jellyfin | default(false) }}"
+        enabled: "{{ deploy_jellyfin }}"
         chart_name: "jellyfin"
         version: "{{ jellyfin_version }}"
         repo: "https://jellyfin.github.io/jellyfin-helm"
         namespace: "jellyfin"
       paperless-ngx:
-        enabled: "{{ deploy_paperless_ngx | default(false) }}"
+        enabled: "{{ deploy_paperless_ngx }}"
         chart_name: "paperless-ngx"
         version: "{{ paperless_ngx_version }}"
         repo: "https://charts.gabe565.com"
         namespace: "paperless-ngx"
       recipya:
-        enabled: "{{ deploy_recipya | default(false) }}"
+        enabled: "{{ deploy_recipya }}"
         chart_name: "recipya"
         version: "{{ recipya_version }}"
         repo: "https://rtomik.github.io/helm-charts"
         namespace: "recipya"
+      radarr:
+        enabled: "{{ deploy_arr }}"
+        chart_name: "radarr"
+        version: "{{ radarr_version }}"
+        repo: "https://charts.pree.dev"
+        namespace: "arr"
+      sonarr:
+        enabled: "{{ deploy_arr }}"
+        chart_name: "sonarr"
+        version: "{{ sonarr_version }}"
+        repo: "https://charts.pree.dev"
+        namespace: "arr"
+      prowlarr:
+        enabled: "{{ deploy_arr }}"
+        chart_name: "prowlarr"
+        version: "{{ prowlarr_version }}"
+        repo: "https://charts.pree.dev"
+        namespace: "arr"
 
       # Template for adding new apps
       # new-app:
-      #   enabled: "{{ deploy_new_app | default(false) }}"
+      #   enabled: "{{ deploy_new_app }}"
       #   chart_name: "new-app"
       #   version: "{{ new_app_version | default('1.0.0') }}"
       #   repo: "https://repo.example.com/"

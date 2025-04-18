@@ -13,7 +13,7 @@ email: <email>
 
 # Tailscale
 tailscale_key: ""
-tailscale_ip_range: 100.64.0.1-100.64.0.20 # Tailcale ip range for metalb
+tailscale_ip_range: 100.64.0.1-100.64.0.3 # Tailcale ip range for metalb
 tailscale_primary_ip: 100.64.0.1
 
 # Cloudflare
@@ -52,7 +52,7 @@ deploy_homeassistant: true
 deploy_recipya: true
 deploy_open_webui: true
 deploy_jellyfin: true
-deploy_arr_stack: false
+deploy_arr: true
 deploy_homepage: true
 deploy_donetick: true
 deploy_paperless_ngx: true
@@ -91,6 +91,10 @@ donetick_version: 1.0.1
 tandoor_version: 0.9.9
 paperless_ngx_version: 0.24.1
 recipya_version: 0.0.2
+radarr_version: 1.15.1
+sonarr_version: 1.10.1
+prowlarr_version: 1.41.1
+
 
 # Server configuration
 perform_full_upgrade: true
