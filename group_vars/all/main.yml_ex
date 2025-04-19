@@ -74,6 +74,7 @@ metallb_version: 0.14.9
 gitlab_version: 8.8.0
 gitea_version: 11.0.0
 reflector_version: 7.1.288
+renovate_version: 39.251.0
 
 # Monitoring
 prometheus_stack_version: 70.4.1
@@ -84,7 +85,7 @@ promtail_version: 6.16.5
 
 # Apps
 jellyfin_version: 2.3.0
-homepage_version: 2.0.1
+homepage_version: 2.0.2
 audiobookshelf_version: 0.0.1
 openwebui_version: 5.24.0
 donetick_version: 1.0.1
@@ -94,7 +95,7 @@ recipya_version: 0.0.2
 radarr_version: 1.15.1
 sonarr_version: 1.10.1
 prowlarr_version: 1.41.1
-
+qbittorrent_version: 0.4.1
 
 # Server configuration
 perform_full_upgrade: true

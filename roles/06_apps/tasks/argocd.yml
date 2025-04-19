@@ -86,6 +86,12 @@
         version: "{{ prowlarr_version }}"
         repo: "https://charts.pree.dev"
         namespace: "arr"
+      qbittorrent:
+        enabled: "{{ deploy_arr }}"
+        chart_name: "qbittorrent"
+        version: "{{ qbittorrent_version }}"
+        repo: "https://charts.gabe565.com"
+        namespace: "arr"
 
       # Template for adding new apps
       # new-app:

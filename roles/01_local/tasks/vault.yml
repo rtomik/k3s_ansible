@@ -31,6 +31,7 @@
         - { name: 'gitea_postgresql_password', length: 15 }
         - { name: 'gitea_repmgr_password', length: 15 }
         - { name: 'gitea_pgpool_password', length: 15 }
+        - { name: 'gitea_admin_password', length: 15 }
       register: generated_tokens
       changed_when: false
 
@@ -47,6 +48,7 @@
           vault_gitea_postgresql_password: "{{ generated_tokens.results[5].stdout }}"
           vault_gitea_repmgr_password: "{{ generated_tokens.results[6].stdout }}"
           vault_gitea_pgpool_password: "{{ generated_tokens.results[7].stdout }}"
+          vault_gitea_admin_password: "{{ generated_tokens.results[7].stdout }}"
 
     # Write unencrypted vault file
     - name: Create temporary unencrypted vault file

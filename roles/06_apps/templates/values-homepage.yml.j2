@@ -42,7 +42,12 @@ homepage:
             href: https://longhorn.{{ domain }}/
             description: Cloud Native Storage
             icon: /icons/longhorn.svg
-
+{% if deploy_arr %}
+        - qBittorrent:
+            href: https://qbittorrent.{{ domain }}
+            description: Indexer
+            icon: /icons/qbittorrent.svg      
+{% endif %}
       - Monitoring:
         - Prometheus:
             href: https://prometheus.{{ domain }}/
@@ -80,7 +85,7 @@ homepage:
         - Prowlarr:
             href: https://prowlarr.{{ domain }}
             description: Indexer
-            icon: /icons/prowlarr.svg                              
+            icon: /icons/prowlarr.svg                                     
 {% endif %}
       - Apps:
 {% if deploy_homeassistant %}
@@ -177,6 +182,10 @@ homepage:
       accessMode: ReadWriteOnce
       size: 1Gi
       storageClass: longhorn
+
+  env:
+    - name: HOMEPAGE_ALLOWED_HOSTS
+      value: homepage.{{ domain }}
 
   serviceAccount:
     create: true

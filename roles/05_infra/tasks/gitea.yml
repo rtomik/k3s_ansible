@@ -9,25 +9,6 @@
       register: gitea_helm_info
       ignore_errors: true
 
-    - name: Check if Gitea admin credentials secret exists
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Secret
-        name: gitea-admin-secret
-        namespace: gitea
-      register: existing_admin_secret
-      ignore_errors: true
-
-    - name: Generate random password for Gitea admin
-      ansible.builtin.set_fact:
-        gitea_admin_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits,punctuation') }}"
-      when: existing_admin_secret.resources is not defined or existing_admin_secret.resources | length == 0
-
-    - name: Retrieve existing Gitea admin password
-      ansible.builtin.set_fact:
-        gitea_admin_password: "{{ (existing_admin_secret.resources[0].data.password | b64decode) }}"
-      when: existing_admin_secret.resources is defined and existing_admin_secret.resources | length > 0
-
     - name: Create Gitea admin credentials secret
       kubernetes.core.k8s:
         state: present
@@ -40,7 +21,7 @@
           type: Opaque
           data:
             username: "{{ 'admin' | b64encode }}"
-            password: "{{ gitea_admin_password | b64encode }}"
+            password: "{{ vault_gitea_admin_password | b64encode }}"
 
     - name: Create Gitea postgresql credentials secret
       kubernetes.core.k8s:
@@ -93,7 +74,6 @@
         argocd_token_valid: false
         gitea_api_token: ""
 
-    # First check if token exists in ArgoCD namespace
     - name: Check for existing API token in ArgoCD namespace
       kubernetes.core.k8s_info:
         api_version: v1
@@ -237,6 +217,31 @@
         (not argocd_token_exists or not argocd_token_valid) and
         gitea_api_token is defined and gitea_api_token | length > 0
 
+    # Create renovate namespace
+    - name: Create renovate namespace if not exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: renovate
+      when: deploy_renovate | bool
+
+    - name: Add gitea token to secret in renovate namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitea-api-token
+            namespace: renovate
+          type: Opaque
+          data:
+            api_token: "{{ gitea_api_token | b64encode }}"
+      when: deploy_renovate | bool
+
     # Ensure we have a non-empty token for the rest of the tasks
     - name: Ensure token is valid for organization creation
       ansible.builtin.set_fact:
@@ -244,6 +249,9 @@
       when: gitea_api_token is not defined or gitea_api_token | length == 0
       no_log: true
 
+- name: Create gitea repo
+  when: deploy_gitea | bool
+  block:
     - name: Check if organization exists
       ansible.builtin.uri:
         url: "https://git.{{ domain }}/api/v1/orgs/{{ git_organization_name }}"

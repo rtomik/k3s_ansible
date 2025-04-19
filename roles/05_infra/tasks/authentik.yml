@@ -263,21 +263,6 @@
             signing_key: false
             additional_config: []
 
-          - name: Tandoor-Recipes
-            slug: tandoor-recipes
-            namespace: tandoor
-            deploy_condition: deploy_tandoor | bool
-            client_type: confidential
-            redirect_uris:
-              - matching_mode: strict
-                url: "https://recipes.{{ domain }}/accounts/authentik/login/callback/"
-            meta_launch_url: "https://recipes.{{ domain }}/"
-            open_in_new_tab: true
-            secret_name: tandoor-authentik-credentials
-            sub_mode: user_email
-            signing_key: false
-            additional_config: []
-
           - name: Gitea
             slug: gitea
             namespace: gitea

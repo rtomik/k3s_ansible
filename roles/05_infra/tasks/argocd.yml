@@ -145,37 +145,43 @@
   vars:
     app_definitions:
       prometheus-operator-crds:
-        enabled: "{{ deploy_prometheus | default(false) }}"
+        enabled: "{{ deploy_prometheus }}"
         chart_name: "prometheus-operator-crds"
         version: "{{ prometheus_crds_version }}"
         repo: "https://prometheus-community.github.io/helm-charts"
         namespace: "monitoring"
         server_side: "true"
       kube-prometheus-stack:
-        enabled: "{{ deploy_prometheus | default(false) }}"
+        enabled: "{{ deploy_prometheus }}"
         chart_name: "kube-prometheus-stack"
         version: "{{ prometheus_stack_version }}"
         repo: "https://prometheus-community.github.io/helm-charts"
         namespace: "monitoring"
         skip_crds: "true"
       grafana:
-        enabled: "{{ deploy_grafana | default(false) }}"
+        enabled: "{{ deploy_grafana }}"
         chart_name: "grafana"
         version: "{{ grafana_version }}"
         repo: "https://grafana.github.io/helm-charts"
         namespace: "monitoring"
       loki:
-        enabled: "{{ deploy_loki | default(false) }}"
+        enabled: "{{ deploy_loki }}"
         chart_name: "loki"
         version: "{{ loki_version }}"
         repo: "https://grafana.github.io/helm-charts"
         namespace: "monitoring"
       promtail:
-        enabled: "{{ deploy_loki | default(false) }}"
+        enabled: "{{ deploy_loki }}"
         chart_name: "promtail"
         version: "{{ promtail_version }}"
         repo: "https://grafana.github.io/helm-charts"
         namespace: "monitoring"
+      renovate:
+        enabled: "{{ deploy_renovate }}"
+        chart_name: "renovate"
+        version: "{{ renovate_version }}"
+        repo: "https://docs.renovatebot.com/helm-charts"
+        namespace: "renovate"
 
     # Filter for enabled apps only
     enabled_apps: "{{ app_definitions | dict2items |
