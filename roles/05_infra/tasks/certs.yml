@@ -166,7 +166,7 @@
     - cert_status.resources[0].status is defined
     - cert_status.resources[0].status.conditions is defined
     - cert_status.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
-  retries: 10
+  retries: 15
   delay: 30
   when: enable_cloudflare | bool
 

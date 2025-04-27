@@ -170,6 +170,18 @@ In this project, we use ArgoCD as our GitOps engine to automatically deploy and 
   
    - Guide [Authentik docs](https://www.audiobookshelf.org/guides/oidc_authentication)    
 
+### Configure Apps
+
+#### Jellyfin
+   - Intial setup https://jellyfin.< Domain >/web/#/wizardstart.html
+
+#### Radarr, Sonarr add download client
+   - Add Download Client - qBittorrent https://radarr.< Domain >/settings/downloadclients
+   - Host: qbittorrent.arr.svc.cluster.local
+   - Port: 8080
+   - User: admin
+   - PW: Check logs from qbittorent pod
+
 ## Troubleshooting
 
 Common issues and solutions:

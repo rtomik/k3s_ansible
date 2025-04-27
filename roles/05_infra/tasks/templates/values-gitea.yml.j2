@@ -1,4 +1,4 @@
-replicaCount: {{ [groups['master'] | length, 3] | min }}
+replicaCount: 1
 
 ingress:
   enabled: true

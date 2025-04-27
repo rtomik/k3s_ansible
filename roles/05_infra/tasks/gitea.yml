@@ -2,13 +2,6 @@
 - name: Deploy Gitea
   when: deploy_gitea | bool
   block:
-    - name: Fetch Gitea Helm chart information
-      kubernetes.core.helm_info:
-        name: gitea
-        release_namespace: gitea
-      register: gitea_helm_info
-      ignore_errors: true
-
     - name: Create Gitea admin credentials secret
       kubernetes.core.k8s:
         state: present
@@ -38,7 +31,14 @@
             repmgr-password: "{{ vault_gitea_repmgr_password | b64encode }}"
             pgpool-password: "{{ vault_gitea_pgpool_password | b64encode }}"
 
-    - name: Deploy or upgrade gitea
+    - name: Fetch Gitea Helm chart information
+      kubernetes.core.helm_info:
+        name: gitea
+        release_namespace: gitea
+      register: gitea_helm_info
+      ignore_errors: true
+
+    - name: Deploy or install gitea
       kubernetes.core.helm:
         name: gitea
         chart_ref: gitea/gitea
@@ -46,11 +46,13 @@
         release_namespace: gitea
         create_namespace: true
         values: "{{ lookup('template', 'values-gitea.yml.j2') | from_yaml }}"
+        wait: true
+        wait_timeout: 5m
       register: gitea_deploy
       retries: 5
-      delay: 10
+      delay: 30
 
-    - name: Wait for gitea to be ready
+    - name: Wait for gitea pod to be ready
       kubernetes.core.k8s_info:
         kind: Pod
         namespace: gitea
@@ -64,7 +66,88 @@
       retries: 30
       delay: 30
 
-- name: Configure Gitea
+    - name: Wait for Gitea API to be ready
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/version"
+        method: GET
+        status_code: [200, 404, 503]
+      register: gitea_api_check
+      retries: 10
+      delay: 30
+      until: gitea_api_check.status == 200
+
+- name: Create Gitea API token for Renovate
+  when: deploy_renovate | bool and deploy_gitea | bool
+  block:
+    - name: Check for existing Renovate token in Gitea
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
+        method: GET
+        url_username: "admin"
+        url_password: "{{ vault_gitea_admin_password }}"
+        force_basic_auth: true
+        status_code: [200, 401, 404]
+      register: existing_tokens
+      failed_when: false
+
+    - name: Set renovate token exists flag
+      ansible.builtin.set_fact:
+        renovate_token_exists: "{{ (existing_tokens.status is defined and existing_tokens.status == 200 and existing_tokens.json is defined and (existing_tokens.json | selectattr('name', 'equalto', 'Renovate') | list | length > 0)) | bool }}"
+      when: existing_tokens is defined
+
+    - name: Extract existing Renovate token if it exists
+      ansible.builtin.set_fact:
+        renovate_api_token: "{{ (existing_tokens.json | selectattr('name', 'equalto', 'Renovate') | list | first).sha1 }}"
+      when: renovate_token_exists | default(false) and existing_tokens.json is defined
+      no_log: true
+
+    - name: Create Renovate access token if it doesn't exist
+      ansible.builtin.uri:
+        url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
+        method: POST
+        url_username: "admin"
+        url_password: "{{ vault_gitea_admin_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          name: "Renovate"
+          scopes: ["read:activitypub", "read:misc", "write:notification", "read:organization", "read:package", "write:issue", "read:user", "write:repository"]
+        status_code: [201, 422]
+      register: renovate_token_result
+      when: not renovate_token_exists | default(false)
+      failed_when: renovate_token_result.status not in [201, 422]
+      no_log: true
+
+    - name: Set Renovate API token from newly created token
+      ansible.builtin.set_fact:
+        renovate_api_token: "{{ renovate_token_result.json.sha1 }}"
+      when: not renovate_token_exists | default(false) and renovate_token_result.status == 201
+      no_log: true
+
+    - name: Create renovate namespace if not exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: renovate
+
+    - name: Add Renovate token to secret in renovate namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitea-api-token
+            namespace: renovate
+          type: Opaque
+          data:
+            api_token: "{{ renovate_api_token | b64encode }}"
+      when: renovate_api_token is defined and renovate_api_token | length > 0
+
+- name: Create Gitea API token for ArgoCD
   when: deploy_gitea | bool
   block:
     # Initialize all variables to prevent undefined errors
@@ -93,16 +176,6 @@
       when: argocd_token_exists
       no_log: true
 
-    - name: Wait for Gitea API to be available
-      ansible.builtin.uri:
-        url: "https://git.{{ domain }}/api/v1/version"
-        method: GET
-        status_code: [200, 404, 503]
-      register: gitea_api_check
-      retries: 10
-      delay: 30
-      until: gitea_api_check.status == 200
-
     # Validate existing token from ArgoCD if it exists
     - name: Validate existing ArgoCD token
       ansible.builtin.uri:
@@ -127,13 +200,12 @@
         url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
         method: GET
         url_username: "admin"
-        url_password: "{{ gitea_admin_password }}"
+        url_password: "{{ vault_gitea_admin_password }}"
         force_basic_auth: true
         status_code: [200, 401, 404]
       register: existing_tokens
       failed_when: false
       when: not argocd_token_valid
-      no_log: true
 
     - name: Set token exists flag
       ansible.builtin.set_fact:
@@ -151,7 +223,7 @@
         url: "https://git.{{ domain }}/api/v1/users/admin/tokens"
         method: POST
         url_username: "admin"
-        url_password: "{{ gitea_admin_password }}"
+        url_password: "{{ vault_gitea_admin_password }}"
         force_basic_auth: true
         body_format: json
         body:
@@ -216,31 +288,6 @@
       when: >
         (not argocd_token_exists or not argocd_token_valid) and
         gitea_api_token is defined and gitea_api_token | length > 0
-
-    # Create renovate namespace
-    - name: Create renovate namespace if not exists
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Namespace
-          metadata:
-            name: renovate
-      when: deploy_renovate | bool
-
-    - name: Add gitea token to secret in renovate namespace
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: gitea-api-token
-            namespace: renovate
-          type: Opaque
-          data:
-            api_token: "{{ gitea_api_token | b64encode }}"
-      when: deploy_renovate | bool
 
     # Ensure we have a non-empty token for the rest of the tasks
     - name: Ensure token is valid for organization creation

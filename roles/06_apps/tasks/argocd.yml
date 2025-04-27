@@ -25,7 +25,6 @@
   vars:
     # App definitions - add new apps here
     app_definitions:
-    # Audiobookshelf source - https://github.com/mmuenker/audiobookshelf-chart
       audiobookshelf:
         enabled: "{{ deploy_audiobookshelf }}"
         chart_name: "audiobookshelf"
@@ -92,7 +91,12 @@
         version: "{{ qbittorrent_version }}"
         repo: "https://charts.gabe565.com"
         namespace: "arr"
-
+      jellyseerr:
+        enabled: "{{ deploy_arr }}"
+        chart_name: "jellyseerr"
+        version: "{{ jellyseerr_version }}"
+        repo: "https://rtomik.github.io/helm-charts"
+        namespace: "arr"
       # Template for adding new apps
       # new-app:
       #   enabled: "{{ deploy_new_app }}"

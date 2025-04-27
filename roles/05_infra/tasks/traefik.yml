@@ -49,9 +49,9 @@
             default-src 'self';
             script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
             style-src 'self' 'unsafe-inline';
-            img-src 'self' data: blob:;
+            img-src 'self' data: blob: https://image.tmdb.org;
             font-src 'self' data:;
-            connect-src 'self' ws: wss:;
+            connect-src 'self' ws: wss: https://sentry.servarr.com;
             worker-src 'self' blob:;
             frame-src 'self';
             media-src 'self';
@@ -59,7 +59,6 @@
             frame-ancestors 'self';
             base-uri 'self';
             form-action 'self' https://jellyfin.{{ domain }} https://authentik.{{ domain }} https://argocd.{{ domain }} https://paperless.{{ domain }}
-          customFrameOptionsValue: SAMEORIGIN
           customRequestHeaders:
             X-Forwarded-Proto: https
 
