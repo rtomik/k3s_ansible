@@ -1,31 +1,52 @@
-- name: Check if k3s is already installed
-  ansible.builtin.stat:
-    path: /usr/local/bin/k3s
-  register: k3s_binary
+---
+- name: Prerequisites
+  block:
+    - name: Check if k3s is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
 
-- name: Download k3s install script
-  ansible.builtin.get_url:
-    url: https://get.k3s.io
-    dest: /tmp/k3s_install.sh
-    mode: '0755'
-  when: not k3s_binary.stat.exists
+    - name: Download k3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s_install.sh
+        mode: '0755'
+      when: not k3s_binary.stat.exists
 
-- name: Get Tailscale IP
-  ansible.builtin.command: tailscale ip -4
-  register: tailscale_ip
-  changed_when: false
+    - name: Get Tailscale IP
+      ansible.builtin.command: tailscale ip -4
+      register: tailscale_ip
+      changed_when: false
 
-- name: Debug Tailscale IP
-  ansible.builtin.debug:
-    var: tailscale_ip.stdout
-    verbosity: 0
+    - name: Debug Tailscale IP
+      ansible.builtin.debug:
+        var: tailscale_ip.stdout
+        verbosity: 0
 
-- name: Create k3s directory
-  ansible.builtin.file:
-    path: /etc/rancher/k3s
-    state: directory
-    mode: '0755'
-  when: not k3s_binary.stat.exists
+    - name: Set fact for Tailscale IP
+      ansible.builtin.set_fact:
+        tailscale_ip_stdout: "{{ tailscale_ip.stdout }}"
+
+    # Make API endpoint name available to ALL hosts
+    - name: Set k3s API endpoint name on all hosts
+      ansible.builtin.set_fact:
+        k3s_api_endpoint: "k3s-api.{{ domain }}"
+      delegate_facts: true
+      run_once: true
+
+    # Output API endpoint for verification
+    - name: Show API endpoint value
+      ansible.builtin.debug:
+        var: k3s_api_endpoint
+        verbosity: 0
+
+    # Create k3s directory
+    - name: Create k3s directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: '0755'
+      when: not k3s_binary.stat.exists
 
 - name: Install k3s primary server
   ansible.builtin.command:
@@ -38,6 +59,7 @@
       server
       --cluster-init
       --tls-san={{ tailscale_ip.stdout }}
+      --tls-san={{ k3s_api_endpoint | default('k3s-api.' + domain) }}
       --bind-address=0.0.0.0
       --advertise-address={{ tailscale_ip.stdout }}
       --node-ip={{ tailscale_ip.stdout }}
@@ -51,28 +73,6 @@
     - not k3s_binary.stat.exists
     - inventory_hostname == groups['master'][0]
   notify: Restart k3s
-
-- name: Ensure .kube directory exists
-  ansible.builtin.file:
-    path: "~/.kube"
-    state: directory
-    mode: '0755'
-
-- name: Copy kubeconfig to ~/.kube/config on primary master
-  ansible.builtin.copy:
-    src: /etc/rancher/k3s/k3s.yaml
-    dest: "~/.kube/config"
-    remote_src: true
-    mode: '0600'
-  when:
-    - inventory_hostname == groups['master'][0]
-
-- name: Set KUBECONFIG environment variable
-  ansible.builtin.lineinfile:
-    path: ~/.bashrc
-    line: 'export KUBECONFIG=~/.kube/config'
-    create: true
-    mode: '0644'
 
 - name: Wait for k3s primary server to be ready
   when:
@@ -107,11 +107,12 @@
     cmd: |
       INSTALL_K3S_VERSION="{{ k3s_version }}" \
       K3S_TOKEN="{{ vault_k3s_token }}" \
-      K3S_URL="https://{{ hostvars[groups['master'][0]]['tailscale_ip']['stdout'] }}:6443" \
+      K3S_URL="https://{{ hostvars[groups['master'][0]]['tailscale_ip_stdout'] }}:6443" \
       /tmp/k3s_install.sh server \
         --flannel-iface=tailscale0 \
         --node-ip={{ tailscale_ip.stdout }} \
         --tls-san={{ tailscale_ip.stdout }} \
+        --tls-san={{ k3s_api_endpoint | default('k3s-api.' + domain) }} \
         --disable=traefik \
         --disable=servicelb
   args:
@@ -127,14 +128,112 @@
     enabled: true
     state: started
 
-- name: Wait for k3s cluster to be ready
-  ansible.builtin.command: k3s kubectl wait --for=condition=Ready nodes --all --timeout=300s
-  register: wait_result
-  retries: 10
-  delay: 30
-  until: wait_result.rc == 0
-  changed_when: false
-  when: inventory_hostname == groups['master'][0]
+- name: Setup kubectl configuration
+  block:
+    # Root user setup
+    - name: Create .kube directory in root's home
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+
+    - name: Copy kubeconfig to root's .kube directory
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /root/.kube/config
+        mode: '0600'
+        owner: root
+        group: root
+        remote_src: true
+
+    # Ansible user setup
+    - name: Create .kube directory for ansible user
+      ansible.builtin.file:
+        path: "/home/{{ user }}/.kube"
+        state: directory
+        mode: '0700'
+        owner: "{{ user }}"
+        group: "{{ user }}"
+
+    - name: Copy kubeconfig to ansible user's .kube directory
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "/home/{{ user }}/.kube/config"
+        mode: '0600'
+        owner: "{{ user }}"
+        group: "{{ user }}"
+        remote_src: true
+
+# HA configuration tasks
+- name: Install required packages for HA
+  ansible.builtin.apt:
+    name:
+      - haproxy
+      - socat
+    state: present
+    update_cache: true
+
+# Configure HAProxy to listen on standard port 6443 on an alternate bind address
+- name: Configure HAProxy with local bind address
+  ansible.builtin.copy:
+    dest: /etc/haproxy/haproxy.cfg
+    content: |
+      global
+          log /dev/log local0
+          log /dev/log local1 notice
+          chroot /var/lib/haproxy
+          stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+          stats timeout 30s
+          user haproxy
+          group haproxy
+          daemon
+
+      defaults
+          log     global
+          mode    tcp
+          option  tcplog
+          option  dontlognull
+          timeout connect 5000
+          timeout client  50000
+          timeout server  50000
+
+      # K3s API endpoint for internal cluster communication
+      frontend k3s_api_internal
+          bind *:7443
+          mode tcp
+          default_backend k3s_api_servers_internal
+
+      # Backend for internal cluster communication
+      backend k3s_api_servers_internal
+          mode tcp
+          balance roundrobin
+          option tcp-check
+          {% for host in groups['master'] %}
+          {% if host != inventory_hostname %}
+          server {{ hostvars[host]['inventory_hostname'] }} {{ hostvars[host]['tailscale_ip_stdout'] }}:6443 check
+          {% endif %}
+          {% endfor %}
+    mode: '0644'
+  notify: Restart haproxy
+
+- name: Update secondary nodes to use local HAProxy
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system/k3s.service.env
+    regexp: '^K3S_URL='
+    line: "K3S_URL=https://127.0.0.1:7443"
+    create: true
+  when: inventory_hostname != groups['master'][0]
+  register: service_env_updated
+
+- name: Restart k3s on secondary nodes if needed
+  ansible.builtin.systemd:
+    name: k3s
+    state: restarted
+  when:
+    - inventory_hostname != groups['master'][0]
+    - service_env_updated.changed
 
 - name: Get kubeconfig from primary node
   ansible.builtin.slurp:
@@ -142,18 +241,10 @@
   register: k3s_kubeconfig
   when: inventory_hostname == groups['master'][0]
 
-- name: Check if local kubeconfig exists
-  ansible.builtin.stat:
-    path: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
-  delegate_to: localhost
-  register: local_kubeconfig
-  when: inventory_hostname == groups['master'][0]
-
+# HA kubeconfig (points to k3s-api DNS name)
 - name: Store kubeconfig locally
   ansible.builtin.copy:
-    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', hostvars[groups['master'][0]]['tailscale_ip']['stdout']) | replace('0.0.0.0', hostvars[groups['master'][0]]['tailscale_ip']['stdout']) }}"
+    content: "{{ k3s_kubeconfig['content'] | b64decode | replace('127.0.0.1', k3s_api_endpoint | default('k3s-api.' + domain)) | replace('0.0.0.0', k3s_api_endpoint | default('k3s-api.' + domain)) | replace(hostvars[groups['master'][0]]['tailscale_ip_stdout'], k3s_api_endpoint | default('k3s-api.' + domain)) }}"
     dest: "{{ playbook_dir }}/../k3s-kubeconfig.yaml"
   delegate_to: localhost
-  when:
-    - inventory_hostname == groups['master'][0]
-  
+  when: inventory_hostname == groups['master'][0]

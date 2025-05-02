@@ -3,3 +3,8 @@
   ansible.builtin.systemd:
     name: k3s
     state: restarted
+
+- name: Restart haproxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: restarted
